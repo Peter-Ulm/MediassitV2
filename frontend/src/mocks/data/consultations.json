@@ -1,0 +1,64 @@
+{
+  "consultations": [
+    {
+      "id": "consult-001",
+      "patient": { "age": 3, "sex": "female", "vitals": { "temperature": 38.9, "heartRate": 130 } },
+      "symptoms": "fever for 2 days, refusing feeds, lethargic",
+      "results": {
+        "diagnoses": [
+          { "name": "Malaria", "probability": 0.65, "evidenceRefs": ["stg:pediatric-fever:sec1", "stg:malaria:sec3"] },
+          { "name": "Urinary Tract Infection", "probability": 0.20, "evidenceRefs": ["stg:pediatric-fever:sec1"] },
+          { "name": "Viral illness", "probability": 0.15, "evidenceRefs": ["stg:viral:sec1"] }
+        ],
+        "followUps": ["Is the child vomiting?", "Has there been any diarrhea?", "Is there a rash?"],
+        "recommendedTests": [
+          { "test": "mRDT", "rationale": "STG recommends mRDT for all febrile children in malaria-endemic areas" },
+          { "test": "Urine dipstick", "rationale": "To rule out UTI in febrile child" }
+        ]
+      },
+      "notes": "Child appears unwell. Awaiting mRDT results.",
+      "status": "completed",
+      "createdAt": "2026-05-03T09:15:00Z"
+    },
+    {
+      "id": "consult-002",
+      "patient": { "age": 34, "sex": "male", "vitals": { "temperature": 39.2, "bloodPressure": "110/70", "heartRate": 88 } },
+      "symptoms": "high fever with chills and headache for 5 days, body aches",
+      "results": {
+        "diagnoses": [
+          { "name": "Malaria", "probability": 0.80, "evidenceRefs": ["stg:malaria:sec3"] },
+          { "name": "Typhoid Fever", "probability": 0.15, "evidenceRefs": ["stg:typhoid:sec2"] },
+          { "name": "Viral infection", "probability": 0.05, "evidenceRefs": ["stg:viral:sec1"] }
+        ],
+        "followUps": ["Has the patient travelled recently?", "Is there a cough?", "Any gastrointestinal symptoms?"],
+        "recommendedTests": [
+          { "test": "mRDT", "rationale": "STG recommends mRDT for suspected malaria" },
+          { "test": "Blood culture", "rationale": "To rule out typhoid in prolonged fever" }
+        ]
+      },
+      "notes": "Patient recently returned from northern region. High suspicion of malaria.",
+      "status": "completed",
+      "createdAt": "2026-05-04T14:30:00Z"
+    },
+    {
+      "id": "consult-003",
+      "patient": { "age": 52, "sex": "female", "vitals": { "temperature": 37.8, "respiratoryRate": 22, "heartRate": 92 } },
+      "symptoms": "cough with sputum for 1 week, mild fever, shortness of breath on exertion",
+      "results": {
+        "diagnoses": [
+          { "name": "Community-Acquired Pneumonia", "probability": 0.55, "evidenceRefs": ["stg:pneumonia:sec2"] },
+          { "name": "Acute URTI", "probability": 0.30, "evidenceRefs": ["stg:urti:sec1"] },
+          { "name": "Viral bronchitis", "probability": 0.15, "evidenceRefs": ["stg:viral:sec1"] }
+        ],
+        "followUps": ["Is the sputum purulent or blood-stained?", "Is there chest pain?", "Any history of COPD or asthma?"],
+        "recommendedTests": [
+          { "test": "Chest X-ray", "rationale": "To confirm pneumonia and assess severity" },
+          { "test": "Pulse oximetry", "rationale": "To assess oxygenation" }
+        ]
+      },
+      "notes": "Productive cough, no hemoptysis. SpO2 95% on room air.",
+      "status": "draft",
+      "createdAt": "2026-05-05T08:00:00Z"
+    }
+  ]
+}

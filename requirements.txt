@@ -1,0 +1,57 @@
+# MediAssist Python dependencies.
+#
+# Reference platform: Python 3.12.x on Windows 11.
+# All pins are exact (==) so demo machines reproduce the same install we
+# tested against. Do not loosen these without re-running scripts/smoke_test.py
+# and a full /diagnosis/generate request.
+#
+# Why each pin is where it is:
+#
+#   chromadb==0.5.23            — matches Role 1's PersistentClient API used
+#                                 to build vector_store/chroma_db. The 0.4.x
+#                                 line uses chromadb.Client(Settings(...)),
+#                                 which is incompatible.
+#   sentence-transformers==3.3.1 — our reranker calls CrossEncoder.predict(),
+#                                 which is stable across 2.x/3.x. We pin to
+#                                 3.3.1 to lock the transformers + torch
+#                                 minimums (transformers>=4.41, torch>=1.11).
+#                                 Note: 3.x added a CrossEncoder.rank() with
+#                                 a new signature — we do not call it.
+#   transformers / torch        — pinned to avoid surprise majors that change
+#                                 tokenizer / autocast behaviour during
+#                                 a demo.
+#   numpy<2.0                   — some chromadb transitive deps (posthog,
+#                                 kubernetes) still expect numpy 1.x on
+#                                 Windows; numpy 2.x has produced sporadic
+#                                 ABI failures with older sentence-transformers
+#                                 wheels. 1.26.4 is the last 1.x stable.
+#   pydantic / pydantic-settings — Pydantic v2 syntax is what our schemas use.
+#                                 2.10.x and 2.7.x are the matched pair we
+#                                 validated; mixing v1 + v2 is a known footgun.
+
+# ── Web layer ──────────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+
+# ── LLM clients ────────────────────────────────────────────────────────────
+openai==1.59.6
+ollama==0.4.5
+tiktoken==0.8.0
+
+# ── Retrieval stack ────────────────────────────────────────────────────────
+chromadb==0.5.23
+sentence-transformers==3.3.1
+transformers==4.46.3
+torch==2.5.1
+huggingface_hub==0.26.5
+numpy==1.26.4
+
+# ── HTTP + utilities ───────────────────────────────────────────────────────
+requests==2.32.3
+httpx==0.27.0
+
+# ── Testing (optional) ─────────────────────────────────────────────────────
+pytest==8.3.4

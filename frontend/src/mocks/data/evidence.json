@@ -1,0 +1,46 @@
+{
+  "evidence": [
+    {
+      "id": "stg:malaria:sec3",
+      "source": "Tanzania Standard Treatment Guidelines",
+      "section": "Section 3: Malaria",
+      "title": "Uncomplicated Malaria",
+      "excerpt": "Uncomplicated malaria presents with fever (often periodic), chills, headache, and malaise. In endemic areas, malaria should be suspected in any patient with fever. Parasitological confirmation by microscopy or rapid diagnostic test (RDT) is recommended before treatment. First-line treatment is Artemisinin-based Combination Therapy (ACT)."
+    },
+    {
+      "id": "stg:typhoid:sec2",
+      "source": "Tanzania Standard Treatment Guidelines",
+      "section": "Section 2: Typhoid Fever",
+      "title": "Enteric Fever",
+      "excerpt": "Typhoid fever presents with sustained high fever, headache, abdominal discomfort, and relative bradycardia. Diagnosis is confirmed by blood culture or Widal test. Treatment with fluoroquinolones or third-generation cephalosporins is recommended. Consider typhoid in patients with prolonged fever (>7 days) and gastrointestinal symptoms."
+    },
+    {
+      "id": "stg:viral:sec1",
+      "source": "Tanzania Standard Treatment Guidelines",
+      "section": "Section 1: Viral Infections",
+      "title": "Non-specific Viral Illness",
+      "excerpt": "Viral infections commonly present with fever, myalgia, headache, and fatigue. Most are self-limiting within 7–10 days. Supportive care with antipyretics and hydration is the mainstay of treatment. Antibiotics are not indicated unless there is suspected secondary bacterial infection."
+    },
+    {
+      "id": "stg:urti:sec1",
+      "source": "Tanzania Standard Treatment Guidelines",
+      "section": "Section 4: Upper Respiratory Tract Infections",
+      "title": "Acute URTI",
+      "excerpt": "Acute upper respiratory tract infections present with cough, sore throat, nasal congestion, and low-grade fever. Most are viral in origin. Symptomatic treatment with analgesics and decongestants is recommended. Antibiotics should only be prescribed when bacterial infection is confirmed or strongly suspected."
+    },
+    {
+      "id": "stg:pneumonia:sec2",
+      "source": "Tanzania Standard Treatment Guidelines",
+      "section": "Section 5: Pneumonia",
+      "title": "Community-Acquired Pneumonia",
+      "excerpt": "Community-acquired pneumonia presents with productive cough, fever, dyspnea, and chest pain. Diagnosis is supported by chest X-ray and pulse oximetry. Treatment with amoxicillin or macrolides is recommended for outpatient management. Severe cases require hospitalization and IV antibiotics."
+    },
+    {
+      "id": "stg:pediatric-fever:sec1",
+      "source": "Tanzania Standard Treatment Guidelines",
+      "section": "Section 6: Pediatric Fever",
+      "title": "Fever in Children",
+      "excerpt": "Fever in children under 5 requires careful assessment. Malaria is the leading cause of fever in endemic areas. Other causes include respiratory infections, urinary tract infections, and gastroenteritis. Always perform an mRDT in endemic areas. Consider serious bacterial infection in children with high fever (>39°C), lethargy, or poor feeding."
+    }
+  ]
+}
