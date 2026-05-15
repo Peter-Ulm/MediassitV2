@@ -8,6 +8,7 @@ import os
 from fastapi import APIRouter
 
 from app.core.config import settings
+from role2_retrieval.utils.chroma_compat import ensure_chroma_compatibility
 from role3_llm.factory import get_llm_provider
 
 router = APIRouter()
@@ -40,6 +41,7 @@ def health() -> dict:
         from pathlib import Path
 
         chroma_path = Path(os.getenv("CHROMA_PATH", settings.CHROMA_PATH)).resolve()
+        ensure_chroma_compatibility(str(chroma_path), settings.CHROMA_COLLECTION)
         client = chromadb.PersistentClient(path=str(chroma_path))
         col = client.get_collection(settings.CHROMA_COLLECTION)
         chunk_count = col.count()

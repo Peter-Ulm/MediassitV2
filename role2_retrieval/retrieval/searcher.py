@@ -20,6 +20,7 @@ from dataclasses import dataclass
 import chromadb
 import numpy as np
 
+from role2_retrieval.utils.chroma_compat import ensure_chroma_compatibility
 from role2_retrieval.utils.config import config
 from role2_retrieval.utils.logger import get_logger
 
@@ -53,6 +54,7 @@ class STGSearcher:
 
     def __init__(self) -> None:
         log.info(f"Connecting to ChromaDB at: {config.chroma_path}")
+        ensure_chroma_compatibility(config.chroma_path, config.chroma_collection)
         self._client = chromadb.PersistentClient(path=config.chroma_path)
         self._collection = self._client.get_collection(config.chroma_collection)
         doc_count = self._collection.count()

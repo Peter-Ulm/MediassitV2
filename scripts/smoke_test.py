@@ -26,6 +26,8 @@ sys.path.insert(0, str(REPO_ROOT / "backend"))
 # Force absolute chroma path so tests work no matter the cwd.
 os.environ.setdefault("CHROMA_PATH", str(REPO_ROOT / "vector_store" / "chroma_db"))
 
+from role2_retrieval.utils.chroma_compat import ensure_chroma_compatibility
+
 
 def check_schemas() -> None:
     from shared.schemas import DiagnosticResponse, DiagnosisItem
@@ -61,6 +63,7 @@ def check_retrieval() -> None:
     import chromadb
 
     chroma_path = os.environ["CHROMA_PATH"]
+    ensure_chroma_compatibility(chroma_path, "mediassist_stg")
     client = chromadb.PersistentClient(path=chroma_path)
     cols = client.list_collections()
     assert cols, f"No collections found at {chroma_path}"
