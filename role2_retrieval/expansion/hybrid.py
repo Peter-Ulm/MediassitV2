@@ -95,11 +95,12 @@ class HybridSearcher:
         top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
         results = []
         for idx in top_indices:
+            md = self._chunk_metadata[idx]
             results.append(RetrievedChunk(
                 chunk_id=self._chunk_ids[idx],
-                text=self._chunk_texts[idx],
+                text=md.get("raw_text") or self._chunk_texts[idx],
                 score=float(scores[idx]),
-                metadata=self._chunk_metadata[idx],
+                metadata=md,
             ))
         return results
 

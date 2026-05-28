@@ -21,6 +21,7 @@ from role2_retrieval.retrieval.encoder import encode_query, encode_batch
 from role2_retrieval.retrieval.searcher import STGSearcher, RetrievedChunk
 from role2_retrieval.expansion.synonyms import expand_with_synonyms
 from role2_retrieval.expansion.multi_query import generate_query_variants
+from role2_retrieval.expansion.hybrid import HybridSearcher
 from role2_retrieval.reranking.reranker import Reranker
 from role2_retrieval.utils.config import config
 from role2_retrieval.utils.logger import get_logger
@@ -41,6 +42,23 @@ def _get_searcher(collection: str | None = None, path: str | None = None) -> STG
     return _searchers[key]
 
 
+_hybrid_searchers: dict[tuple[str, str], HybridSearcher] = {}
+
+
+def _get_hybrid_searcher(collection: str, path: str) -> HybridSearcher:
+    """Build (once per (path, collection)) a BM25 index over the contextualized docs."""
+    key = (path, collection)
+    if key not in _hybrid_searchers:
+        searcher = _get_searcher(collection, path)
+        raw = searcher._collection.get(include=["documents", "metadatas"])
+        _hybrid_searchers[key] = HybridSearcher(
+            chunk_texts=raw["documents"],
+            chunk_ids=raw["ids"],
+            chunk_metadata=raw["metadatas"],
+        )
+    return _hybrid_searchers[key]
+
+
 def _get_reranker() -> Reranker:
     global _reranker
     if _reranker is None:
@@ -57,6 +75,7 @@ def retrieve(
     rerank_top_n: int | None = None,
     collection: str | None = None,
     path: str | None = None,
+    use_hybrid: bool | None = None,
 ) -> list[RetrievedChunk]:
     """
     Full retrieval pipeline for a single clinical symptom query.
@@ -78,6 +97,7 @@ def retrieve(
     use_multi_query = use_multi_query if use_multi_query is not None else config.use_multi_query
     use_reranking   = use_reranking   if use_reranking   is not None else config.use_reranking
     rerank_top_n    = rerank_top_n    or config.rerank_top_n
+    use_hybrid = use_hybrid if use_hybrid is not None else config.use_hybrid
     coll = collection or config.chroma_collection
     p = path or config.chroma_path
 
@@ -109,6 +129,12 @@ def retrieve(
     # ── Step 5: Deduplicate and merge ─────────────────────────────────────
     merged_chunks = STGSearcher.deduplicate(chunk_lists)
     log.info(f"[Pipeline] {len(merged_chunks)} unique chunks after deduplication.")
+
+    # ── Contextual BM25 + RRF fusion ─────────────────────────────────────
+    if use_hybrid and merged_chunks:
+        hybrid = _get_hybrid_searcher(coll, p)
+        merged_chunks = hybrid.hybrid_search(query, merged_chunks, top_n=k)
+        log.info(f"[Pipeline] {len(merged_chunks)} chunks after hybrid RRF fusion.")
 
     # ── Step 6: Cross-encoder re-ranking ─────────────────────────────────
     if use_reranking and merged_chunks:
