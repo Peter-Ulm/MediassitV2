@@ -9,7 +9,7 @@ def test_long_chunk_is_structural_only():
     text = " ".join(["word"] * 30)
     res = contextualize(text, {"chapter": "Chapter Five: MALARIA"}, [], provider=_FakeProvider())
     assert res.source == "structural"
-    assert res.contextualized_text.startswith("Chapter Five: MALARIA: ")
+    assert res.contextualized_text.startswith("Chapter Five: MALARIA:")
     assert "Situating blurb." not in res.contextualized_text
 
 

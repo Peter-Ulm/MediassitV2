@@ -116,14 +116,7 @@ def contextualize(
         if blurb:
             source = "hybrid"
 
-    # Build contextualized_text: prefix + optional blurb separator + chunk.
-    # We keep the trailing space from the prefix so the result reads naturally
-    # (e.g. "Chapter Five: MALARIA: <chunk>") without an extra newline split.
-    if prefix or blurb:
-        blurb_part = (" " + blurb) if blurb else ""
-        text = prefix + blurb_part.strip() + chunk_text if not blurb else assemble_contextualized_text(prefix, blurb, chunk_text)
-    else:
-        text = chunk_text
+    text = assemble_contextualized_text(prefix, blurb, chunk_text)
     joined = (prefix + blurb).strip()
     return ContextResult(contextualized_text=text, prefix=joined, source=source)
 
