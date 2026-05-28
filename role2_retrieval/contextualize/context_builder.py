@@ -87,3 +87,56 @@ def generate_llm_blurb(chunk_text: str, neighbor_texts: list[str], provider=None
     except Exception as exc:  # never block the build on an LLM hiccup
         log.warning(f"Blurb generation failed ({exc}); using structural-only.")
         return ""
+
+
+@dataclass
+class ContextResult:
+    contextualized_text: str   # what gets embedded + BM25-indexed
+    prefix: str                # the generated context only (audit/provenance)
+    source: str                # "structural" | "hybrid"
+
+
+def contextualize(
+    chunk_text: str,
+    metadata: dict,
+    neighbor_texts: list[str],
+    use_llm: bool = True,
+    word_threshold: int = THIN_WORD_THRESHOLD,
+    provider=None,
+) -> ContextResult:
+    """Build the hybrid context for one chunk."""
+    prefix = build_structural_prefix(metadata)
+    blurb = ""
+    source = "structural"
+
+    thin = is_thin_chunk(chunk_text, metadata, word_threshold)
+    short_enough = len(chunk_text.split()) <= MAX_WORDS_FOR_LLM
+    if use_llm and thin and short_enough:
+        blurb = generate_llm_blurb(chunk_text, neighbor_texts, provider=provider)
+        if blurb:
+            source = "hybrid"
+
+    # Build contextualized_text: prefix + optional blurb separator + chunk.
+    # We keep the trailing space from the prefix so the result reads naturally
+    # (e.g. "Chapter Five: MALARIA: <chunk>") without an extra newline split.
+    if prefix or blurb:
+        blurb_part = (" " + blurb) if blurb else ""
+        text = prefix + blurb_part.strip() + chunk_text if not blurb else assemble_contextualized_text(prefix, blurb, chunk_text)
+    else:
+        text = chunk_text
+    joined = (prefix + blurb).strip()
+    return ContextResult(contextualized_text=text, prefix=joined, source=source)
+
+
+def select_neighbors(chunks: list[dict], index: int, window: int = 2) -> list[str]:
+    """Up to `window` neighbours on each side that share the target's chapter.
+
+    `chunks` is a list of {'text': str, 'metadata': dict} in document order.
+    """
+    target_ch = chunks[index]["metadata"].get("chapter") or ""
+    out: list[str] = []
+    for off in range(1, window + 1):
+        for j in (index - off, index + off):
+            if 0 <= j < len(chunks) and (chunks[j]["metadata"].get("chapter") or "") == target_ch:
+                out.append(chunks[j]["text"])
+    return out
