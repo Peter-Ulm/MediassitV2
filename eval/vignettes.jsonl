@@ -1,0 +1,16 @@
+{"query": "Fever for 3 days with chills, headache, reduced appetite, no cough, no chest pain, no shortness of breath", "expected_chapters": ["Chapter Five: MALARIA", "Chapter One: SYNDROMIC APPROACH"], "note": "screenshot case - must NOT rank respiratory first"}
+{"query": "Cough with fever, difficulty breathing and chest pain for two days", "expected_chapters": ["Chapter Nine: RESPIRATORY DISEASE CONDITIONS"], "note": "legitimate pneumonia"}
+{"query": "Productive cough for three weeks with night sweats and weight loss", "expected_chapters": ["Chapter Seven: TUBERCULOSIS AND LEPROSY"], "note": "TB"}
+{"query": "Severe headache with neck stiffness, photophobia and high fever", "expected_chapters": ["Chapter Eight: NERVOUS SYSTEM DISEASE CONDITIONS"], "note": "meningitis"}
+{"query": "Profuse watery diarrhoea with vomiting and signs of dehydration", "expected_chapters": ["Chapter Ten: GASTROINTESTINAL DISEASE CONDITIONS"], "note": "gastroenteritis/cholera"}
+{"query": "Crushing chest pain radiating to the left arm with sweating and breathlessness", "expected_chapters": ["Chapter Twenty: CARDIOVASCULAR DISEASE CONDITIONS"], "note": "ACS"}
+{"query": "Generalised weakness, pallor and fatigue with shortness of breath on exertion", "expected_chapters": ["Chapter Three: HAEMATOLOGICAL DISEASE CONDITIONS"], "note": "anaemia"}
+{"query": "Severe toothache with swollen gum and facial swelling", "expected_chapters": ["Chapter Sixteen: ORAL AND DENTAL CONDITION"], "note": "dental abscess"}
+{"query": "Ear pain with discharge and reduced hearing for several days", "expected_chapters": ["Chapter Fifteen: EAR, NOSE AND THROAT DISEASES"], "note": "otitis media"}
+{"query": "Recurrent convulsions and loss of consciousness in a known epileptic", "expected_chapters": ["Chapter Eight: NERVOUS SYSTEM DISEASE CONDITIONS"], "note": "epilepsy"}
+{"query": "Persistent low mood, loss of interest, insomnia and thoughts of self harm", "expected_chapters": ["Chapter Twenty Three: MENTAL HEALTH CONDITIONS"], "note": "depression"}
+{"query": "Child who swallowed rat poison, now drooling and vomiting", "expected_chapters": ["Chapter Twenty Five: POISONING"], "note": "poisoning"}
+{"query": "Pregnant woman at 34 weeks with severe headache, high blood pressure and leg swelling", "expected_chapters": ["Chapter Eleven: OBSTETRICS, GYNECOLOGY AND CONTRACEPTION"], "note": "pre-eclampsia"}
+{"query": "HIV positive patient with oral thrush, chronic diarrhoea and weight loss", "expected_chapters": ["Chapter Six: HIV/AIDS"], "note": "advanced HIV"}
+{"query": "Road traffic accident with a deep bleeding leg laceration", "expected_chapters": ["Chapter Eighteen: TRAUMA & INJURIES"], "note": "trauma"}
+{"query": "High fever with a rash and bleeding gums in an outbreak setting", "expected_chapters": ["Chapter Four: NOTIFIABLE DISEASES", "Chapter Five: MALARIA"], "note": "VHF / notifiable"}
