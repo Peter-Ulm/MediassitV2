@@ -12,6 +12,28 @@
 
 ---
 
+## REVISION 2026-05-29 — separate DB path for the contextual index (ChromaDB 1.5.8 WAL bug)
+
+**Discovered during Task 6 execution.** The bundled `vector_store/chroma_db` was created by an older ChromaDB and uses a legacy SQLite schema (sequence IDs stored as `BLOB`); `chroma_compat.py` migrates it on read. Writing a **new** collection into that same legacy DB with ChromaDB 1.5.8 leaves WAL entries the Rust compactor cannot read on a fresh connection — `count()`/`get()`/`query()` then fail with `mismatched types; Rust type u64 (as SQL type INTEGER) is not compatible with SQL type BLOB`. A DB created **fresh** by 1.5.8 reconnects cleanly (verified).
+
+**Resolution:** the contextual index lives in its **own fresh DB directory**, `vector_store/chroma_ctx_db`, never inside the legacy bundled DB. A retrieval target is therefore a **(path, collection)** pair, not just a collection name. This supersedes the relevant parts of Tasks 6–10:
+
+- **Config (add in Task 6, used by 7–10):** add to `Config` in `role2_retrieval/utils/config.py`:
+  ```python
+  # Contextual index lives in its own fresh ChromaDB (the bundled DB's legacy
+  # schema breaks the 1.5.8 compactor when a new collection is written into it).
+  ctx_chroma_path: str = field(
+      default_factory=lambda: os.getenv("CTX_CHROMA_PATH", "vector_store/chroma_ctx_db")
+  )
+  ```
+- **Task 6 build script:** reads the source from `config.chroma_path` / `mediassist_stg`, writes the target into a **separate** client at `--target-path` (default `config.ctx_chroma_path`). Source DB is never written.
+- **Task 7 searcher:** `STGSearcher(collection=None, path=None)` where `path` defaults to `config.chroma_path`. Only run `ensure_chroma_compatibility(...)` for the **legacy** path (`path == config.chroma_path`); skip it for the fresh ctx DB (the legacy pickle-migration would corrupt a native 1.5.8 index).
+- **Task 7/8 pipeline:** thread an optional `path` through `retrieve(..., collection=None, path=None)`, `_get_searcher(collection, path)`, and `_get_hybrid_searcher(collection, path)`. Singletons are keyed by `(path, collection)`.
+- **Task 9 eval:** baseline source = `(config.chroma_path, "mediassist_stg")`; contextual source = `(config.ctx_chroma_path, "mediassist_stg_ctx")`.
+- **Task 10 go-live:** set both `CHROMA_PATH=vector_store/chroma_ctx_db` and `CHROMA_COLLECTION=mediassist_stg_ctx` (plus `USE_HYBRID=true`). Rollback = revert those env vars; the bundled DB is left pristine.
+
+---
+
 ## File Structure
 
 | File | Responsibility |
