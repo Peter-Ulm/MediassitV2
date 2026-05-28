@@ -66,6 +66,12 @@ class Config:
         default_factory=lambda: os.getenv("USE_RERANKING", "true").lower() == "true"
     )
 
+    # Contextual BM25: fuse dense + sparse (BM25 over contextualized text) via
+    # RRF before reranking. Off by default until the contextual index is built.
+    use_hybrid: bool = field(
+        default_factory=lambda: os.getenv("USE_HYBRID", "false").lower() == "true"
+    )
+
     def validate(self) -> None:
         if self.top_k < 1:
             raise ValueError("TOP_K must be at least 1.")
