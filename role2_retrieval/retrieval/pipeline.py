@@ -28,15 +28,17 @@ from role2_retrieval.utils.logger import get_logger
 log = get_logger(__name__)
 
 # Module-level singletons (initialised on first call)
-_searcher: STGSearcher | None = None
+_searchers: dict[tuple[str, str], STGSearcher] = {}
 _reranker: Reranker | None = None
 
 
-def _get_searcher() -> STGSearcher:
-    global _searcher
-    if _searcher is None:
-        _searcher = STGSearcher()
-    return _searcher
+def _get_searcher(collection: str | None = None, path: str | None = None) -> STGSearcher:
+    name = collection or config.chroma_collection
+    p = path or config.chroma_path
+    key = (p, name)
+    if key not in _searchers:
+        _searchers[key] = STGSearcher(collection=name, path=p)
+    return _searchers[key]
 
 
 def _get_reranker() -> Reranker:
@@ -53,6 +55,8 @@ def retrieve(
     use_multi_query: bool | None = None,
     use_reranking: bool | None = None,
     rerank_top_n: int | None = None,
+    collection: str | None = None,
+    path: str | None = None,
 ) -> list[RetrievedChunk]:
     """
     Full retrieval pipeline for a single clinical symptom query.
@@ -74,6 +78,8 @@ def retrieve(
     use_multi_query = use_multi_query if use_multi_query is not None else config.use_multi_query
     use_reranking   = use_reranking   if use_reranking   is not None else config.use_reranking
     rerank_top_n    = rerank_top_n    or config.rerank_top_n
+    coll = collection or config.chroma_collection
+    p = path or config.chroma_path
 
     log.info(f"[Pipeline] Query: '{query[:80]}'")
 
@@ -94,7 +100,7 @@ def retrieve(
     query_vectors = encode_batch(all_queries)
 
     # ── Step 4: Search ChromaDB with each query vector ────────────────────
-    searcher = _get_searcher()
+    searcher = _get_searcher(coll, p)
     chunk_lists = searcher.search_many(
         [query_vectors[i] for i in range(len(all_queries))],
         k=k,

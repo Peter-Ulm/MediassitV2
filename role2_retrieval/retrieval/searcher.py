@@ -43,6 +43,11 @@ class RetrievedChunk:
         )
 
 
+def display_text(documents: str, metadata: dict) -> str:
+    """Clinician-facing text: the original chunk (raw_text) when available."""
+    return (metadata or {}).get("raw_text") or documents
+
+
 class STGSearcher:
     """
     Wraps ChromaDB to provide STG chunk retrieval.
@@ -52,14 +57,20 @@ class STGSearcher:
         chunks = searcher.search(query_vector, k=5)
     """
 
-    def __init__(self) -> None:
-        log.info(f"Connecting to ChromaDB at: {config.chroma_path}")
-        ensure_chroma_compatibility(config.chroma_path, config.chroma_collection)
-        self._client = chromadb.PersistentClient(path=config.chroma_path)
-        self._collection = self._client.get_collection(config.chroma_collection)
+    def __init__(self, collection: str | None = None, path: str | None = None) -> None:
+        collection = collection or config.chroma_collection
+        path = path or config.chroma_path
+        log.info(f"Connecting to ChromaDB at: {path}")
+        # The legacy bundled DB needs the schema/index compatibility shim. A
+        # freshly-built DB (e.g. the contextual index) is already native and
+        # must NOT be shimmed, or its index metadata would be corrupted.
+        if path == config.chroma_path:
+            ensure_chroma_compatibility(path, collection)
+        self._client = chromadb.PersistentClient(path=path)
+        self._collection = self._client.get_collection(collection)
         doc_count = self._collection.count()
         log.info(
-            f"Connected to collection '{config.chroma_collection}' "
+            f"Connected to collection '{collection}' "
             f"({doc_count} chunks indexed)."
         )
 
@@ -98,12 +109,13 @@ class STGSearcher:
         chunks: list[RetrievedChunk] = []
         for idx in range(len(results["ids"][0])):
             chunk_id = results["ids"][0][idx]
-            text     = results["documents"][0][idx]
+            documents = results["documents"][0][idx]
             # Chroma returns L2 distance; convert to similarity score.
             # For normalised vectors: cosine_sim = 1 - (L2_dist² / 2)
             distance = results["distances"][0][idx]
             score    = 1.0 - (distance / 2.0)
             metadata = results["metadatas"][0][idx] if results["metadatas"] else {}
+            text     = display_text(documents, metadata)
 
             chunks.append(RetrievedChunk(
                 chunk_id=chunk_id,
