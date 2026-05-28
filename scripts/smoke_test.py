@@ -24,7 +24,9 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
 # Force absolute chroma path so tests work no matter the cwd.
-os.environ.setdefault("CHROMA_PATH", str(REPO_ROOT / "vector_store" / "chroma_db"))
+# Resolve to absolute path for whichever DB is configured (default: ctx DB).
+_default_chroma_path = str(REPO_ROOT / "vector_store" / "chroma_ctx_db")
+os.environ.setdefault("CHROMA_PATH", _default_chroma_path)
 
 from role2_retrieval.utils.chroma_compat import ensure_chroma_compatibility
 
@@ -63,15 +65,18 @@ def check_retrieval() -> None:
     import chromadb
 
     chroma_path = os.environ["CHROMA_PATH"]
-    ensure_chroma_compatibility(chroma_path, "mediassist_stg")
+    # Read the collection name from env so the smoke test works for both the
+    # legacy bundled DB and the contextual index (go-live config).
+    collection_name = os.environ.get("CHROMA_COLLECTION", "mediassist_stg_ctx")
+    ensure_chroma_compatibility(chroma_path, collection_name)
     client = chromadb.PersistentClient(path=chroma_path)
     cols = client.list_collections()
     assert cols, f"No collections found at {chroma_path}"
-    target = next((c for c in cols if c.name == "mediassist_stg"), None)
-    assert target is not None, "Collection 'mediassist_stg' missing"
-    n = client.get_collection("mediassist_stg").count()
+    target = next((c for c in cols if c.name == collection_name), None)
+    assert target is not None, f"Collection '{collection_name}' missing at {chroma_path}"
+    n = client.get_collection(collection_name).count()
     assert n > 0, "Collection is empty"
-    print(f"  OK  ChromaDB has {n} chunks in 'mediassist_stg'")
+    print(f"  OK  ChromaDB has {n} chunks in '{collection_name}'")
 
     # Now run the real Role 2 pipeline end-to-end (encode + search + rerank).
     # Reranking may take a moment on first run because it downloads the
