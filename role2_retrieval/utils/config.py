@@ -33,6 +33,13 @@ class Config:
         default_factory=lambda: os.getenv("CHROMA_COLLECTION", "mediassist_stg")
     )
 
+    # The contextual index lives in its OWN fresh ChromaDB. The bundled DB's
+    # legacy schema breaks ChromaDB 1.5.8's compactor when a new collection is
+    # written into it, so we never write the contextual collection there.
+    ctx_chroma_path: str = field(
+        default_factory=lambda: os.getenv("CTX_CHROMA_PATH", "vector_store/chroma_ctx_db")
+    )
+
     top_k: int = field(default_factory=lambda: int(os.getenv("TOP_K", "5")))
     rerank_top_n: int = field(
         default_factory=lambda: int(os.getenv("RERANK_TOP_N", "3"))

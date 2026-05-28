@@ -2,11 +2,14 @@
 """
 Build the contextual STG index.
 
-Reads every chunk from the source ChromaDB collection, prepends a hybrid
+Reads every chunk from the SOURCE ChromaDB collection, prepends a hybrid
 situating context (structural prefix + LLM blurb for thin chunks), re-embeds
-the contextualized text with the SAME model, and writes a NEW collection.
+the contextualized text with the SAME model, and writes a NEW collection into
+a SEPARATE, fresh ChromaDB directory.
 
-The source collection is never modified. Run from the repo root:
+Why a separate directory: the bundled source DB uses a legacy schema; writing a
+new collection into it breaks ChromaDB 1.5.8's compactor. A fresh DB is clean.
+The source DB is never modified. Run from the repo root:
 
     python -m scripts.build_contextual_index
 """
@@ -38,15 +41,21 @@ def _scalar(value):
     return str(value)
 
 
-def build(target_collection: str, source_collection: str, use_llm: bool) -> None:
-    client = chromadb.PersistentClient(path=config.chroma_path)
-
-    src = client.get_collection(source_collection)
+def build(
+    target_collection: str,
+    source_collection: str,
+    use_llm: bool,
+    source_path: str,
+    target_path: str,
+) -> None:
+    # Source DB (legacy, read-only) and target DB (fresh) are SEPARATE clients.
+    src_client = chromadb.PersistentClient(path=source_path)
+    src = src_client.get_collection(source_collection)
     raw = src.get(include=["documents", "metadatas"])
     ids = raw["ids"]
     docs = raw["documents"]
     metas = raw["metadatas"]
-    log.info(f"Read {len(ids)} chunks from '{source_collection}'.")
+    log.info(f"Read {len(ids)} chunks from '{source_collection}' at {source_path}.")
 
     # Document order for neighbour windows: group by chapter, then page.
     order = sorted(
@@ -96,13 +105,14 @@ def build(target_collection: str, source_collection: str, use_llm: bool) -> None
     log.info(f"Loading embedding model: {config.embedding_model}")
     model = SentenceTransformer(config.embedding_model)
 
-    # Fresh target collection.
+    # Fresh target collection in its OWN fresh DB directory.
+    dst_client = chromadb.PersistentClient(path=target_path)
     try:
-        client.delete_collection(target_collection)
+        dst_client.delete_collection(target_collection)
         log.info(f"Deleted existing '{target_collection}'.")
     except Exception:
         pass
-    dst = client.create_collection(target_collection, metadata={"hnsw:space": "l2"})
+    dst = dst_client.create_collection(target_collection, metadata={"hnsw:space": "l2"})
 
     for start in range(0, len(out_ids), EMBED_BATCH):
         chunk_docs = out_docs[start:start + EMBED_BATCH]
@@ -115,16 +125,19 @@ def build(target_collection: str, source_collection: str, use_llm: bool) -> None
         )
         log.info(f"Embedded + wrote {min(start + EMBED_BATCH, len(out_ids))}/{len(out_ids)}")
 
-    log.info(f"Built '{target_collection}' with {dst.count()} chunks.")
+    log.info(f"Built '{target_collection}' at {target_path} with {dst.count()} chunks.")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Build the contextual STG index.")
     ap.add_argument("--target", default="mediassist_stg_ctx")
     ap.add_argument("--source", default="mediassist_stg")
+    ap.add_argument("--source-path", default=config.chroma_path)
+    ap.add_argument("--target-path", default=config.ctx_chroma_path)
     ap.add_argument("--no-llm", action="store_true", help="structural-only (skip LLM blurbs)")
     args = ap.parse_args()
-    build(args.target, args.source, use_llm=not args.no_llm)
+    build(args.target, args.source, use_llm=not args.no_llm,
+          source_path=args.source_path, target_path=args.target_path)
 
 
 if __name__ == "__main__":
