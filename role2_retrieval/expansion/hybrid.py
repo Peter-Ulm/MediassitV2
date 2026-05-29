@@ -20,7 +20,10 @@ Usage (after dense retrieval is working):
 from __future__ import annotations
 from dataclasses import dataclass
 
-from rank_bm25 import BM25Okapi
+# NOTE: rank_bm25 is imported lazily inside HybridSearcher.__init__ (not here),
+# so importing this module — which the pipeline does unconditionally — never
+# requires rank_bm25. It is only needed when hybrid retrieval (USE_HYBRID=true)
+# actually instantiates a HybridSearcher.
 
 from role2_retrieval.retrieval.searcher import RetrievedChunk
 from role2_retrieval.utils.logger import get_logger
@@ -81,6 +84,16 @@ class HybridSearcher:
         self._chunk_texts    = chunk_texts
         self._chunk_ids      = chunk_ids
         self._chunk_metadata = chunk_metadata or [{} for _ in chunk_texts]
+
+        try:
+            from rank_bm25 import BM25Okapi
+        except ImportError as exc:  # fail loudly, not silently-empty
+            raise ImportError(
+                "Hybrid retrieval (USE_HYBRID=true) needs the 'rank_bm25' package. "
+                "Install it with:  pip install rank_bm25   "
+                "(or rerun: pip install -r requirements.txt). "
+                "To run without hybrid, set USE_HYBRID=false."
+            ) from exc
 
         log.info(f"Building BM25 index over {len(chunk_texts)} chunks...")
         tokenized = [_tokenize(t) for t in chunk_texts]
