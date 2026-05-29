@@ -58,5 +58,6 @@ pytest==8.3.4
 
 # ── Persistence + auth (real login + SQLite store) ──────────────────────────
 sqlalchemy==2.0.36
-passlib[bcrypt]==1.7.4
+# Use bcrypt directly: passlib 1.7.4 is unmaintained and crashes with bcrypt 5.x.
+bcrypt==5.0.0
 pyjwt==2.10.1
