@@ -114,15 +114,16 @@ cd mediassist
 # 4. Verify the wiring (no LLM call yet — just retrieval + factory)
 .\.venv\Scripts\python.exe scripts\smoke_test.py
 
-# 5. Create your login — REQUIRED. There is no signup page; the app refuses
-#    unauthenticated requests, so you must create an account before logging in.
-.\.venv\Scripts\python.exe -m scripts.create_user --email you@clinic.tz --name "Your Name" --role clinician
-
-# 6. Start backend + frontend together, then open the UI and log in
+# 5. Start backend + frontend together, then open the UI
 .\scripts\run.ps1
+
+# 6. (Optional) add a real account — there is NO signup page; accounts are
+#    provisioned via the CLI (controlled access for a clinical tool):
+.\.venv\Scripts\python.exe -m scripts.create_user --email you@clinic.tz --name "Your Name" --role clinician
 ```
 
-Open **http://localhost:5173** for the doctor UI (log in with the account from step 5).
+Open **http://localhost:5173** and click **"Continue as Demo Doctor"** — `setup.ps1`
+seeds `dr.demo@mediassist.test` / `DemoPass123` for you. (Add real accounts via step 6.)
 Health check: **http://localhost:8000/api/v1/health**.
 
 > **Retrieval index config.** `.env` is git-ignored, so it does not travel with
@@ -147,6 +148,12 @@ never leaves the device or enters git). `setup.ps1` generates a real `JWT_SECRET
 in `.env` for you. Create the first account from the repo root:
 
     .\.venv\Scripts\python.exe -m scripts.create_user --email admin@clinic.tz --name "Admin" --role admin
+
+Admins get an in-app **User management** screen at `/admin` (an "Admin" link
+appears in the sidebar for admin accounts) to create users, activate/deactivate
+them, change roles, and reset passwords. `setup.ps1` seeds a demo admin
+(`admin.demo@mediassist.test` / `DemoPass123`) so the screen is demoable; the
+demo clinician (`dr.demo@mediassist.test`) does **not** see it.
 
 ## Troubleshooting (read this if something doesn't work)
 

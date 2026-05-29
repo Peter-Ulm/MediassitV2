@@ -100,3 +100,12 @@ export interface HealthStatus {
   };
   uptime_seconds: number;
 }
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'clinician' | 'admin';
+  isActive: boolean;
+  createdAt: string;
+}

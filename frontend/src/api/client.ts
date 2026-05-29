@@ -1,4 +1,5 @@
 import type {
+  AdminUser,
   AuthResponse,
   Consultation,
   ConsultationSummary,
@@ -74,5 +75,18 @@ export const api = {
     request<DiagnosisResult>('/diagnosis/generate', {
       method: 'POST',
       body: JSON.stringify({ symptoms, patientMeta }),
+    }),
+
+  listUsers: () => request<AdminUser[]>('/admin/users'),
+
+  createUser: (payload: { email: string; name: string; password: string; role: 'clinician' | 'admin' }) =>
+    request<AdminUser>('/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
+
+  updateUser: (id: string, updates: { isActive?: boolean; role?: 'clinician' | 'admin' }) =>
+    request<AdminUser>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+
+  resetUserPassword: (id: string, password: string) =>
+    request<{ ok: boolean }>(`/admin/users/${id}/reset-password`, {
+      method: 'POST', body: JSON.stringify({ password }),
     }),
 };

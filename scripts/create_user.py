@@ -14,26 +14,12 @@ import argparse
 import getpass
 import os
 import sys
-import uuid
 
 # Make `app` importable when run from the repo root.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend"))
 
-from app.core.security import hash_password  # noqa: E402
 from app.db.base import SessionLocal, init_db  # noqa: E402
-from app.db.models import User  # noqa: E402
-
-
-def create_user(db, *, email: str, name: str, password: str, role: str) -> User:
-    if role not in ("clinician", "admin"):
-        raise ValueError("role must be 'clinician' or 'admin'")
-    if db.query(User).filter(User.email == email).first():
-        raise ValueError(f"user already exists: {email}")
-    user = User(id=f"user-{uuid.uuid4().hex[:8]}", email=email, name=name,
-                password_hash=hash_password(password), role=role, is_active=True)
-    db.add(user)
-    db.commit()
-    return user
+from app.services.users import create_user  # noqa: E402
 
 
 def main() -> None:

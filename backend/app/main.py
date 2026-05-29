@@ -71,7 +71,7 @@ def create_app() -> FastAPI:
 
     # Import routes after resolving CHROMA_PATH. The diagnosis route imports
     # Role 2, whose config reads CHROMA_PATH at import time.
-    from app.api.routes import auth, consultations, diagnosis, health
+    from app.api.routes import admin, auth, consultations, diagnosis, health
     from app.db.base import init_db
     init_db()
 
@@ -95,6 +95,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
     app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
     app.include_router(diagnosis.router, prefix="/api/v1", tags=["diagnosis"])

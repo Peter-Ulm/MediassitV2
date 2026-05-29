@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from './app-shell';
-import { AuthRoute } from './auth-route';
+import { AuthRoute, AdminRoute } from './auth-route';
 import { LoginPage } from '../pages/login';
 import { DashboardPage } from '../pages/dashboard';
 import { NewConsultationPage } from '../pages/new-consultation';
@@ -8,6 +8,7 @@ import { ConsultationWorkspacePage } from '../pages/consultation-workspace';
 import { HistoryPage } from '../pages/history';
 import { SettingsPage } from '../pages/settings';
 import { HelpPage } from '../pages/help';
+import { AdminUsersPage } from '../pages/admin-users';
 
 export const router = createBrowserRouter([
   {
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: 'history', element: <HistoryPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'help', element: <HelpPage /> },
+      { path: 'admin', element: <AdminRoute><AdminUsersPage /></AdminRoute> },
     ],
   },
 ]);
