@@ -14,6 +14,8 @@ import {
 
 const DEMO_EMAIL = 'dr.demo@mediassist.test';
 const DEMO_PASSWORD = 'DemoPass123';
+const DEMO_ADMIN_EMAIL = 'admin.demo@mediassist.test';
+const DEMO_ADMIN_PASSWORD = 'DemoPass123';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -48,6 +50,21 @@ export function LoginPage() {
       navigate('/dashboard');
     } catch {
       setError('Demo login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoAdminLogin = async () => {
+    setEmail(DEMO_ADMIN_EMAIL);
+    setPassword(DEMO_ADMIN_PASSWORD);
+    setError('');
+    setLoading(true);
+    try {
+      await login(DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD);
+      navigate('/dashboard');
+    } catch {
+      setError('Demo admin login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -214,9 +231,20 @@ export function LoginPage() {
             Continue as Demo Doctor
           </button>
 
-          <div className="mt-4 text-center">
+          <button
+            onClick={handleDemoAdminLogin}
+            disabled={loading}
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Continue as Demo Admin
+          </button>
+
+          <div className="mt-4 space-y-1 text-center">
             <p className="text-xs text-slate-500">
-              Demo: {DEMO_EMAIL} / {DEMO_PASSWORD}
+              Demo clinician: {DEMO_EMAIL} / {DEMO_PASSWORD}
+            </p>
+            <p className="text-xs text-slate-500">
+              Demo admin: {DEMO_ADMIN_EMAIL} / {DEMO_ADMIN_PASSWORD}
             </p>
           </div>
         </div>
