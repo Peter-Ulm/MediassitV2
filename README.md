@@ -43,11 +43,12 @@ development model.
                 │            Calibrator → Strategist           │
                 └─────────────────────┬────────────────────────┘
                                       ▼
-                ┌────────────────────────────┐  ┌────────────────────┐
-                │ vector_store/chroma_db/    │  │ Ollama  (or OpenAI) │
-                │ collection: mediassist_stg │  │ mistral:7b-instruct │
-                │ embed: all-MiniLM-L6-v2    │  │ keep_alive=30m      │
-                └────────────────────────────┘  └────────────────────┘
+                ┌────────────────────────────────┐  ┌────────────────────┐
+                │ vector_store/chroma_ctx_db/    │  │ Ollama  (or OpenAI) │
+                │ collection: mediassist_stg_ctx │  │ mistral:7b-instruct │
+                │ embed: all-MiniLM-L6-v2        │  │ keep_alive=30m      │
+                │ (contextual retrieval index)   │  │                     │
+                └────────────────────────────────┘  └────────────────────┘
 ```
 
 ## Repository layout
@@ -63,8 +64,9 @@ mediassist/
 │       └── services/diagnose.py  Retrieval → LLM wire
 │
 ├── role2_retrieval/            Role 2 — Willard's retrieval pipeline
-│   ├── retrieval/              encoder + ChromaDB searcher
-│   ├── expansion/              synonyms + multi-query
+│   ├── retrieval/              encoder + ChromaDB searcher (path/collection aware)
+│   ├── contextualize/          contextual retrieval: structural prefix + LLM blurb
+│   ├── expansion/              synonyms, multi-query, hybrid BM25 (RRF)
 │   ├── reranking/              cross-encoder
 │   └── utils/                  config, logger
 │
@@ -80,12 +82,18 @@ mediassist/
 │   └── validation/             Gatekeeper, Auditor, Strategist
 │
 ├── shared/schemas.py           Pydantic contract used by all roles
-├── vector_store/chroma_db/     Role 1 — bundled prebuilt 17 MB ChromaDB
+├── vector_store/
+│   ├── chroma_db/              Role 1 — bundled legacy 17 MB ChromaDB
+│   └── chroma_ctx_db/          contextual index (bundled, ~19 MB) ← live default
 ├── frontend/                   Role 5 — Jesca's React UI
 ├── scripts/
 │   ├── setup.ps1               One-shot env setup
 │   ├── run.ps1                 Launch backend + frontend
+│   ├── build_contextual_index.py  Build the contextual index (offline)
+│   ├── eval_retrieval.py       Old-vs-new retrieval eval (hit-rate@5, MRR)
 │   └── smoke_test.py           End-to-end wiring verification
+├── eval/vignettes.jsonl        Clinical vignettes (retrieval ground truth)
+├── docs/superpowers/           Design spec + implementation plan
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -113,6 +121,19 @@ cd mediassist
 Open **http://localhost:5173** for the doctor UI.
 Health check: **http://localhost:8000/api/v1/health**.
 
+> **Retrieval index config.** `.env` is git-ignored, so it does not travel with
+> a clone. Set these three keys (they are in `.env.example`) to use the
+> contextual index bundled in this repo:
+>
+> ```bash
+> CHROMA_PATH=vector_store/chroma_ctx_db
+> CHROMA_COLLECTION=mediassist_stg_ctx
+> USE_HYBRID=false
+> ```
+>
+> Without them, retrieval falls back to the legacy `mediassist_stg` index and you
+> won't see the contextual-retrieval improvement.
+
 ## Switching models
 
 The point of the provider abstraction is that this is a one-line change.
@@ -127,6 +148,45 @@ OLLAMA_MODEL=mistral:7b-instruct        # default — already pulled
 # LLM_PROVIDER=openai
 # OPENAI_MODEL=gpt-4o-mini              # or gpt-4o for the premium tier
 ```
+
+## Contextual retrieval
+
+STG chunks were originally embedded as bare fragments — a chunk could be just
+`"Diagnostic Criteria"` — so retrieval matched on isolated keywords and surfaced
+clinically wrong evidence (e.g. a *fever, no respiratory signs* query ranked
+Pneumonia first and cited its treatment line). Following Anthropic's
+**contextual retrieval**, each chunk now has its `Chapter › Section` context
+prepended **before embedding**, so the vector reflects what the chunk is about.
+
+The contextual index is built into a separate ChromaDB
+(`vector_store/chroma_ctx_db`, collection `mediassist_stg_ctx`) and bundled in
+the repo. The clinician still sees the clean clinical text — the context prefix
+is internal (stored as `raw_text` in metadata and shown as the evidence).
+
+Measured on 16 clinical vignettes (chapter-level ground truth, top-5):
+
+| index | hit-rate@5 | MRR |
+|-------|-----------|-----|
+| legacy (`mediassist_stg`)         | 62.5%      | 0.50 |
+| contextual (`mediassist_stg_ctx`) | **68.75%** | **0.66** |
+
+Hybrid BM25 fusion (the `HybridSearcher` + Reciprocal Rank Fusion) is wired in
+but **off by default** (`USE_HYBRID=false`) — the eval showed it lowered ranking
+quality on the STG. An LLM-blurb step for thin chunks exists but is dormant: the
+shipped index is structural-only, so the gains above come from the structural
+prefix alone.
+
+```powershell
+# Rebuild the contextual index (structural-only, deterministic, no LLM)
+.\.venv\Scripts\python.exe -m scripts.build_contextual_index --no-llm
+
+# Reproduce the old-vs-new eval table above
+.\.venv\Scripts\python.exe -m scripts.eval_retrieval
+```
+
+> Not yet addressed: embeddings cannot represent **negation** ("no cough"), so a
+> stated-negative still won't fully suppress a keyword match — that belongs in
+> the `role3_llm` ranking prompt and is tracked as a follow-up.
 
 ## Why the prototype was slow
 
@@ -175,8 +235,8 @@ curl -X POST http://localhost:8000/api/v1/diagnosis/generate \
 # Wiring smoke test (no LLM call required)
 .\.venv\Scripts\python.exe scripts\smoke_test.py
 
-# Backend pytest (when tests/ is populated)
-.\.venv\Scripts\python.exe -m pytest
+# Unit tests (contextual retrieval: prefix, thin-chunk, cache, blurb, fusion)
+.\.venv\Scripts\python.exe -m pytest tests/ -q     # 22 tests
 ```
 
 ## License
