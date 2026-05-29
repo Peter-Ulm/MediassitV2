@@ -20,6 +20,11 @@ from role2_retrieval.utils.config import config
 VIGNETTES = "eval/vignettes.jsonl"
 K = 5
 
+# The legacy bundled index is at a FIXED location; do not use config.chroma_path,
+# which is repointed at the contextual index at go-live.
+LEGACY_PATH = "vector_store/chroma_db"
+LEGACY_COLLECTION = "mediassist_stg"
+
 
 def _load():
     with open(VIGNETTES, "r", encoding="utf-8") as fh:
@@ -52,7 +57,7 @@ def main() -> None:
     print(f"Evaluating {len(vignettes)} vignettes @k={K}\n")
 
     configs = [
-        ("OLD legacy index (dense+rerank)", config.chroma_path, "mediassist_stg", False),
+        ("OLD legacy index (dense+rerank)", LEGACY_PATH, LEGACY_COLLECTION, False),
         ("NEW ctx index   (dense+rerank)", config.ctx_chroma_path, "mediassist_stg_ctx", False),
         ("NEW ctx index   (hybrid+rerank)", config.ctx_chroma_path, "mediassist_stg_ctx", True),
     ]

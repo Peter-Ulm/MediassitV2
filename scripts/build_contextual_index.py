@@ -130,9 +130,12 @@ def build(
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Build the contextual STG index.")
+    # Source defaults to the LEGACY bundled DB explicitly (NOT config.chroma_path,
+    # which at go-live is repointed at the contextual index — using it as source
+    # would re-contextualize an already-contextualized index).
     ap.add_argument("--target", default="mediassist_stg_ctx")
     ap.add_argument("--source", default="mediassist_stg")
-    ap.add_argument("--source-path", default=config.chroma_path)
+    ap.add_argument("--source-path", default="vector_store/chroma_db")
     ap.add_argument("--target-path", default=config.ctx_chroma_path)
     ap.add_argument("--no-llm", action="store_true", help="structural-only (skip LLM blurbs)")
     args = ap.parse_args()

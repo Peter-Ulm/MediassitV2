@@ -15,6 +15,7 @@ Expected metadata fields (confirm with Role 1):
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 import chromadb
@@ -25,6 +26,11 @@ from role2_retrieval.utils.config import config
 from role2_retrieval.utils.logger import get_logger
 
 log = get_logger(__name__)
+
+# The legacy bundled ChromaDB lives at this fixed location and needs the
+# compatibility shim. config.chroma_path is NOT used here because it is
+# repointed at the (native) contextual index at go-live.
+_LEGACY_BUNDLED_PATH = "vector_store/chroma_db"
 
 
 @dataclass
@@ -63,8 +69,9 @@ class STGSearcher:
         log.info(f"Connecting to ChromaDB at: {path}")
         # The legacy bundled DB needs the schema/index compatibility shim. A
         # freshly-built DB (e.g. the contextual index) is already native and
-        # must NOT be shimmed, or its index metadata would be corrupted.
-        if path == config.chroma_path:
+        # must NOT be shimmed. Identify the legacy DB by its fixed path, since
+        # config.chroma_path is repointed at the contextual index at go-live.
+        if os.path.normpath(path) == os.path.normpath(_LEGACY_BUNDLED_PATH):
             ensure_chroma_compatibility(path, collection)
         self._client = chromadb.PersistentClient(path=path)
         self._collection = self._client.get_collection(collection)
