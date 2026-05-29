@@ -149,6 +149,12 @@ in `.env` for you. Create the first account from the repo root:
 
     .\.venv\Scripts\python.exe -m scripts.create_user --email admin@clinic.tz --name "Admin" --role admin
 
+Admins get an in-app **User management** screen at `/admin` (an "Admin" link
+appears in the sidebar for admin accounts) to create users, activate/deactivate
+them, change roles, and reset passwords. `setup.ps1` seeds a demo admin
+(`admin.demo@mediassist.test` / `DemoPass123`) so the screen is demoable; the
+demo clinician (`dr.demo@mediassist.test`) does **not** see it.
+
 ## Troubleshooting (read this if something doesn't work)
 
 | Symptom | Cause & fix |
