@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 from app.db.base import SessionLocal, init_db  # noqa: E402
 from app.db.models import User  # noqa: E402
-from scripts.create_user import create_user  # noqa: E402
+from app.services.users import create_user  # noqa: E402
 
 DEMO_EMAIL = "dr.demo@mediassist.test"
 DEMO_PASSWORD = "DemoPass123"
