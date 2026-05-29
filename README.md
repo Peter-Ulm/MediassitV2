@@ -134,6 +134,16 @@ Health check: **http://localhost:8000/api/v1/health**.
 > Without them, retrieval falls back to the legacy `mediassist_stg` index and you
 > won't see the contextual-retrieval improvement.
 
+## Authentication & data
+
+Login is real: passwords are bcrypt-hashed, sessions are signed JWTs, and the
+`/diagnosis/*` and `/consultations/*` routes require a valid token. Consultations
+persist in a local SQLite DB at `data/mediassist.db` (git-ignored — patient data
+never leaves the device or enters git). Set `JWT_SECRET` in `.env` (see
+`.env.example`). Create the first account from the repo root:
+
+    python -m scripts.create_user --email admin@clinic.tz --name "Admin" --role admin
+
 ## Switching models
 
 The point of the provider abstraction is that this is a one-line change.

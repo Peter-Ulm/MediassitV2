@@ -31,6 +31,9 @@ Thumbs.db
 *.log
 logs/
 
+# Local app database (PHI — never commit)
+data/
+
 # ChromaDB write-ahead artefacts (keep the data, drop the WAL)
 vector_store/chroma_db/*.wal
 vector_store/chroma_ctx_db/*.wal
