@@ -114,11 +114,15 @@ cd mediassist
 # 4. Verify the wiring (no LLM call yet — just retrieval + factory)
 .\.venv\Scripts\python.exe scripts\smoke_test.py
 
-# 5. Start backend + frontend together
+# 5. Create your login — REQUIRED. There is no signup page; the app refuses
+#    unauthenticated requests, so you must create an account before logging in.
+.\.venv\Scripts\python.exe -m scripts.create_user --email you@clinic.tz --name "Your Name" --role clinician
+
+# 6. Start backend + frontend together, then open the UI and log in
 .\scripts\run.ps1
 ```
 
-Open **http://localhost:5173** for the doctor UI.
+Open **http://localhost:5173** for the doctor UI (log in with the account from step 5).
 Health check: **http://localhost:8000/api/v1/health**.
 
 > **Retrieval index config.** `.env` is git-ignored, so it does not travel with
@@ -139,10 +143,19 @@ Health check: **http://localhost:8000/api/v1/health**.
 Login is real: passwords are bcrypt-hashed, sessions are signed JWTs, and the
 `/diagnosis/*` and `/consultations/*` routes require a valid token. Consultations
 persist in a local SQLite DB at `data/mediassist.db` (git-ignored — patient data
-never leaves the device or enters git). Set `JWT_SECRET` in `.env` (see
-`.env.example`). Create the first account from the repo root:
+never leaves the device or enters git). `setup.ps1` generates a real `JWT_SECRET`
+in `.env` for you. Create the first account from the repo root:
 
-    python -m scripts.create_user --email admin@clinic.tz --name "Admin" --role admin
+    .\.venv\Scripts\python.exe -m scripts.create_user --email admin@clinic.tz --name "Admin" --role admin
+
+## Troubleshooting (read this if something doesn't work)
+
+| Symptom | Cause & fix |
+|---|---|
+| **Diagnosis returns nothing / "no evidence"; retrieval is empty** | The retrieval pipeline needs `rank_bm25`. Re-run `pip install -r requirements.txt` (or `.\.venv\Scripts\pip.exe install rank_bm25`). It also means retrieval failed silently — check the backend window for a `Retrieval failed (...)` log line. |
+| **Login fails / every request returns 401** | There is **no signup page**. Create an account first: `.\.venv\Scripts\python.exe -m scripts.create_user --email you@clinic.tz --name "You" --role clinician`, then log in with it. |
+| **Health check shows `llm healthy: false` or generation hangs** | Ollama isn't running or the model isn't pulled. Run `ollama serve` in its own window and `ollama pull mistral:7b-instruct`. |
+| **Evidence looks like the *old* (keyword) results** | Your `.env` is pointing at the legacy index. Set `CHROMA_PATH=vector_store/chroma_ctx_db` and `CHROMA_COLLECTION=mediassist_stg_ctx` (see `.env.example`). |
 
 ## Switching models
 

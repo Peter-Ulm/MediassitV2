@@ -48,6 +48,10 @@ transformers==4.46.3
 torch==2.5.1
 huggingface_hub==0.26.5
 numpy==1.26.4
+# BM25 sparse retrieval for the optional hybrid (USE_HYBRID=true) path. The
+# pipeline imports HybridSearcher, so this must be installed even though the
+# rank_bm25 import itself is lazy (only loaded when hybrid is actually used).
+rank_bm25==0.2.2
 
 # ── HTTP + utilities ───────────────────────────────────────────────────────
 requests==2.32.3

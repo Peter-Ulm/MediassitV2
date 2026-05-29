@@ -28,6 +28,22 @@ if (-not (Test-Path ".env")) {
     Write-Host ".env already exists — leaving it alone."
 }
 
+# Replace the placeholder JWT_SECRET with a real random value. Tokens are signed
+# with this; the shipped placeholder must not be used.
+$envText = Get-Content ".env" -Raw
+if (($envText -match "change-me-to-a-long-random-hex-string") -or ($envText -notmatch "(?m)^\s*JWT_SECRET\s*=\s*\S")) {
+    $secret = (& .\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))").Trim()
+    if ($envText -match "(?m)^\s*JWT_SECRET\s*=.*$") {
+        $envText = [regex]::Replace($envText, "(?m)^\s*JWT_SECRET\s*=.*$", "JWT_SECRET=$secret")
+    } else {
+        $envText = $envText.TrimEnd() + "`r`nJWT_SECRET=$secret`r`n"
+    }
+    Set-Content ".env" $envText -NoNewline
+    Write-Host "Generated a random JWT_SECRET in .env."
+} else {
+    Write-Host "JWT_SECRET already set — leaving it alone."
+}
+
 if (-not (Test-Path ".\frontend\.env.local")) {
     Copy-Item ".\frontend\.env.example" ".\frontend\.env.local"
     Write-Host "Created frontend\.env.local so the UI talks to the live backend."
@@ -57,4 +73,11 @@ if ($null -eq $ollama) {
 }
 
 Write-Host ""
-Write-Host "Setup complete. Start the system with:  .\scripts\run.ps1" -ForegroundColor Green
+Write-Host "Setup complete." -ForegroundColor Green
+Write-Host ""
+Write-Host "NEXT STEPS (required — there is no signup page in the app):" -ForegroundColor Yellow
+Write-Host "  1. Create your login account:"
+Write-Host '       .\.venv\Scripts\python.exe -m scripts.create_user --email you@clinic.tz --name "Your Name" --role clinician'
+Write-Host "  2. Start the app (opens backend + frontend windows):"
+Write-Host "       .\scripts\run.ps1"
+Write-Host "  3. Open http://localhost:5173 and log in with the account from step 1."
