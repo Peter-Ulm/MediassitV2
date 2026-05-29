@@ -11,9 +11,11 @@ import time
 import uuid
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.deps import get_current_user
 from app.core.logger import logger
+from app.db.models import User
 from app.schemas.api import (
     Diagnosis,
     DiagnoseRequest,
@@ -35,7 +37,7 @@ def _build_recommended_tests(test_strings: List[str]) -> List[RecommendedTest]:
 
 
 @router.post("/diagnosis/retrieve")
-def retrieve_documents(request: DiagnoseRequest) -> dict:
+def retrieve_documents(request: DiagnoseRequest, current_user: User = Depends(get_current_user)) -> dict:
     """
     Returns the STG chunks Role 2 retrieved for the given symptoms — WITHOUT
     running the LLM. Used by the frontend's evidence-preview panel.
@@ -68,7 +70,7 @@ def retrieve_documents(request: DiagnoseRequest) -> dict:
 
 
 @router.post("/diagnosis/generate", response_model=DiagnoseResponse)
-def generate_diagnosis(request: DiagnoseRequest) -> DiagnoseResponse:
+def generate_diagnosis(request: DiagnoseRequest, current_user: User = Depends(get_current_user)) -> DiagnoseResponse:
     """Full retrieve → LLM pipeline. The frontend's primary endpoint."""
 
     logger.info(

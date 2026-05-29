@@ -19,6 +19,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   });
+  if (res.status === 401) {
+    localStorage.removeItem('mediassist_token');
+    localStorage.removeItem('mediassist_user');
+    if (window.location.pathname !== '/login') {
+      window.location.assign('/login');
+    }
+    throw new Error('Session expired — please log in again.');
+  }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`API ${res.status}: ${body}`);

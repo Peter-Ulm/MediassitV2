@@ -15,6 +15,7 @@ Expected metadata fields (confirm with Role 1):
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 import chromadb
@@ -25,6 +26,11 @@ from role2_retrieval.utils.config import config
 from role2_retrieval.utils.logger import get_logger
 
 log = get_logger(__name__)
+
+# The legacy bundled ChromaDB lives at this fixed location and needs the
+# compatibility shim. config.chroma_path is NOT used here because it is
+# repointed at the (native) contextual index at go-live.
+_LEGACY_BUNDLED_PATH = "vector_store/chroma_db"
 
 
 @dataclass
@@ -43,6 +49,11 @@ class RetrievedChunk:
         )
 
 
+def display_text(documents: str, metadata: dict) -> str:
+    """Clinician-facing text: the original chunk (raw_text) when available."""
+    return (metadata or {}).get("raw_text") or documents
+
+
 class STGSearcher:
     """
     Wraps ChromaDB to provide STG chunk retrieval.
@@ -52,14 +63,21 @@ class STGSearcher:
         chunks = searcher.search(query_vector, k=5)
     """
 
-    def __init__(self) -> None:
-        log.info(f"Connecting to ChromaDB at: {config.chroma_path}")
-        ensure_chroma_compatibility(config.chroma_path, config.chroma_collection)
-        self._client = chromadb.PersistentClient(path=config.chroma_path)
-        self._collection = self._client.get_collection(config.chroma_collection)
+    def __init__(self, collection: str | None = None, path: str | None = None) -> None:
+        collection = collection or config.chroma_collection
+        path = path or config.chroma_path
+        log.info(f"Connecting to ChromaDB at: {path}")
+        # The legacy bundled DB needs the schema/index compatibility shim. A
+        # freshly-built DB (e.g. the contextual index) is already native and
+        # must NOT be shimmed. Identify the legacy DB by its fixed path, since
+        # config.chroma_path is repointed at the contextual index at go-live.
+        if os.path.normpath(path) == os.path.normpath(_LEGACY_BUNDLED_PATH):
+            ensure_chroma_compatibility(path, collection)
+        self._client = chromadb.PersistentClient(path=path)
+        self._collection = self._client.get_collection(collection)
         doc_count = self._collection.count()
         log.info(
-            f"Connected to collection '{config.chroma_collection}' "
+            f"Connected to collection '{collection}' "
             f"({doc_count} chunks indexed)."
         )
 
@@ -98,12 +116,13 @@ class STGSearcher:
         chunks: list[RetrievedChunk] = []
         for idx in range(len(results["ids"][0])):
             chunk_id = results["ids"][0][idx]
-            text     = results["documents"][0][idx]
+            documents = results["documents"][0][idx]
             # Chroma returns L2 distance; convert to similarity score.
             # For normalised vectors: cosine_sim = 1 - (L2_dist² / 2)
             distance = results["distances"][0][idx]
             score    = 1.0 - (distance / 2.0)
             metadata = results["metadatas"][0][idx] if results["metadatas"] else {}
+            text     = display_text(documents, metadata)
 
             chunks.append(RetrievedChunk(
                 chunk_id=chunk_id,

@@ -1,10 +1,9 @@
 """
-Consultation routes — in-memory CRUD.
+Consultation routes — DB-backed CRUD.
 
 The frontend treats a "consultation" as the persistent record of a doctor's
 diagnostic session: patient meta + symptoms + the produced DiagnosisResult +
-free-text notes. We store these in a process-local dict for the demo. A real
-deployment would back this with a database.
+free-text notes. Records are stored in SQLite via SQLAlchemy.
 
 Difference vs the prototype: create_consultation now runs the REAL diagnose
 service (Role 2 retrieval + Role 3 LLM), so consultations contain real
@@ -13,16 +12,19 @@ ChromaDB-grounded diagnoses instead of a hand-written stub.
 
 from __future__ import annotations
 
-import time
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.api.routes.diagnosis import _build_recommended_tests
 from app.core.logger import logger
+from app.db.base import get_db
+from app.db.models import Consultation as ConsultationRow, User
+from app.services import audit
 from app.schemas.api import (
     Diagnosis,
     DiagnoseResponse,
@@ -33,11 +35,6 @@ from app.schemas.api import (
 from app.services.diagnose import diagnose
 
 router = APIRouter()
-
-
-# Process-local store. Restarting the backend wipes consultations — fine for
-# a demo, swap for a database in production.
-_consultations: Dict[str, "Consultation"] = {}
 
 
 class Consultation(BaseModel):
@@ -124,57 +121,74 @@ def _to_diagnose_response(symptoms: str) -> DiagnoseResponse:
     )
 
 
+def _to_api(row: ConsultationRow) -> Consultation:
+    return Consultation(
+        id=row.id, patient=row.patient, symptoms=row.symptoms,
+        results=row.results, notes=row.notes, status=row.status,
+        createdAt=row.created_at.isoformat(),
+    )
+
+
 @router.post("/consultations", response_model=Consultation)
-def create_consultation(request: CreateConsultationRequest) -> Consultation:
+def create_consultation(request: CreateConsultationRequest, db: Session = Depends(get_db),
+                        current_user: User = Depends(get_current_user)) -> Consultation:
     results = _to_diagnose_response(request.symptoms)
-    consultation = Consultation(
+    row = ConsultationRow(
         id=f"consult-{uuid4().hex[:8]}",
-        patient=request.patient,
+        owner_user_id=current_user.id,
+        patient=request.patient.model_dump(),
         symptoms=request.symptoms,
-        results=results,
+        results=results.model_dump(),
         notes="",
         status="draft",
-        createdAt=datetime.now(timezone.utc).isoformat(),
     )
-    _consultations[consultation.id] = consultation
-    logger.info(f"created consultation {consultation.id}")
-    return consultation
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    audit.record(db, user_id=current_user.id, action="CONSULTATION_CREATE", target_type="consultation", target_id=row.id)
+    logger.info(f"created consultation {row.id}")
+    return _to_api(row)
 
 
 @router.get("/consultations", response_model=List[ConsultationSummary])
-def list_consultations() -> List[ConsultationSummary]:
+def list_consultations(db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_user)) -> List[ConsultationSummary]:
+    q = db.query(ConsultationRow)
+    if current_user.role != "admin":
+        q = q.filter(ConsultationRow.owner_user_id == current_user.id)
+    rows = q.order_by(ConsultationRow.created_at.desc()).all()
     return [
         ConsultationSummary(
-            id=c.id,
-            patient=c.patient,
-            summary=c.symptoms[:80] + ("..." if len(c.symptoms) > 80 else ""),
-            createdAt=c.createdAt,
-            status=c.status,
+            id=r.id, patient=r.patient,
+            summary=r.symptoms[:80] + ("..." if len(r.symptoms) > 80 else ""),
+            createdAt=r.created_at.isoformat(), status=r.status,
         )
-        # Newest first
-        for c in sorted(_consultations.values(), key=lambda x: x.createdAt, reverse=True)
+        for r in rows
     ]
 
 
 @router.get("/consultations/{consultation_id}", response_model=Consultation)
-def get_consultation(consultation_id: str) -> Consultation:
-    consultation = _consultations.get(consultation_id)
-    if consultation is None:
+def get_consultation(consultation_id: str, db: Session = Depends(get_db),
+                     current_user: User = Depends(get_current_user)) -> Consultation:
+    row = db.get(ConsultationRow, consultation_id)
+    if row is None or (current_user.role != "admin" and row.owner_user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Consultation not found")
-    return consultation
+    audit.record(db, user_id=current_user.id, action="CONSULTATION_VIEW", target_type="consultation", target_id=row.id)
+    return _to_api(row)
 
 
 @router.patch("/consultations/{consultation_id}", response_model=Consultation)
-def update_consultation(
-    consultation_id: str,
-    request: UpdateConsultationRequest,
-) -> Consultation:
-    consultation = _consultations.get(consultation_id)
-    if consultation is None:
+def update_consultation(consultation_id: str, request: UpdateConsultationRequest,
+                        db: Session = Depends(get_db),
+                        current_user: User = Depends(get_current_user)) -> Consultation:
+    row = db.get(ConsultationRow, consultation_id)
+    if row is None or (current_user.role != "admin" and row.owner_user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Consultation not found")
-
     updates = request.model_dump(exclude_unset=True)
-    updated = consultation.model_copy(update=updates)
-    _consultations[consultation_id] = updated
+    for k, v in updates.items():
+        setattr(row, k, v)
+    db.commit()
+    db.refresh(row)
+    audit.record(db, user_id=current_user.id, action="CONSULTATION_UPDATE", target_type="consultation", target_id=row.id)
     logger.info(f"updated consultation {consultation_id}")
-    return updated
+    return _to_api(row)
