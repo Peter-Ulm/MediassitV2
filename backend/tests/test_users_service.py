@@ -42,3 +42,14 @@ def test_reset_password_changes_hash(db_session):
 def test_missing_user_raises_usernotfound(db_session):
     with pytest.raises(users.UserNotFound):
         users.set_active(db_session, "nope", True)
+
+
+def test_create_user_short_password_raises(db_session):
+    with pytest.raises(ValueError):
+        users.create_user(db_session, email="short@x.test", name="S", password="abc", role="clinician")
+
+
+def test_reset_password_short_raises(db_session):
+    u = users.create_user(db_session, email="r@x.test", name="R", password="StrongPass1", role="clinician")
+    with pytest.raises(ValueError):
+        users.reset_password(db_session, u.id, "abc")

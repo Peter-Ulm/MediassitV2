@@ -64,3 +64,19 @@ def test_admin_cannot_lock_self_out(client, db_session):
     _seed(db_session, "adm", "adm@x.test", "admin")
     assert c.patch("/api/v1/admin/users/adm", headers=_auth("adm"), json={"isActive": False}).status_code == 400
     assert c.patch("/api/v1/admin/users/adm", headers=_auth("adm"), json={"role": "clinician"}).status_code == 400
+
+
+def test_create_user_short_password_400(client, db_session):
+    c, app = client
+    _seed(db_session, "adm", "adm@x.test", "admin")
+    r = c.post("/api/v1/admin/users", headers=_auth("adm"),
+               json={"email": "short@x.test", "name": "S", "password": "abc", "role": "clinician"})
+    assert r.status_code == 400
+
+
+def test_reset_password_short_400(client, db_session):
+    c, app = client
+    _seed(db_session, "adm", "adm@x.test", "admin")
+    target = users.create_user(db_session, email="rp@x.test", name="RP", password="StrongPass1", role="clinician")
+    r = c.post(f"/api/v1/admin/users/{target.id}/reset-password", headers=_auth("adm"), json={"password": "abc"})
+    assert r.status_code == 400

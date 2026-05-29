@@ -92,6 +92,8 @@ def reset_password_endpoint(user_id: str, req: ResetPasswordRequest, db: Session
         users.reset_password(db, user_id, req.password)
     except users.UserNotFound:
         raise HTTPException(status_code=404, detail="User not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     audit.record(db, user_id=admin.id, action="USER_RESET_PASSWORD",
                  target_type="user", target_id=user_id)
     return {"ok": True}

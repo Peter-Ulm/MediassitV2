@@ -11,6 +11,7 @@ from app.core.security import hash_password
 from app.db.models import User
 
 _ROLES = ("clinician", "admin")
+MIN_PASSWORD_LENGTH = 8
 
 
 class UserNotFound(Exception):
@@ -27,6 +28,8 @@ def _get(db: Session, user_id: str) -> User:
 def create_user(db: Session, *, email: str, name: str, password: str, role: str) -> User:
     if role not in _ROLES:
         raise ValueError(f"role must be one of {_ROLES}")
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise ValueError(f"password must be at least {MIN_PASSWORD_LENGTH} characters")
     if db.query(User).filter(User.email == email).first():
         raise ValueError(f"user already exists: {email}")
     user = User(
@@ -64,6 +67,8 @@ def set_role(db: Session, user_id: str, role: str) -> User:
 
 
 def reset_password(db: Session, user_id: str, new_password: str) -> User:
+    if len(new_password) < MIN_PASSWORD_LENGTH:
+        raise ValueError(f"password must be at least {MIN_PASSWORD_LENGTH} characters")
     user = _get(db, user_id)
     user.password_hash = hash_password(new_password)
     db.commit()
