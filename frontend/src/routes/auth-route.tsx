@@ -7,3 +7,10 @@ export function AuthRoute({ children }: { children: ReactNode }) {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
+
+export function AdminRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}

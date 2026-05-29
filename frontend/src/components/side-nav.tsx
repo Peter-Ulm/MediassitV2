@@ -8,9 +8,11 @@ import {
   PlusCircle,
   Settings,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useState } from 'react';
+import { useAuth } from '../features/auth/auth-context';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -22,6 +24,11 @@ const navItems = [
 
 export function SideNav() {
   const [collapsed, setCollapsed] = useState(false);
+  const { user } = useAuth();
+  const items = [
+    ...navItems,
+    ...(user?.role === 'admin' ? [{ to: '/admin', icon: Users, label: 'Admin' }] : []),
+  ];
 
   return (
     <aside
@@ -31,7 +38,7 @@ export function SideNav() {
     >
       <nav className="flex-1 py-5">
         <ul className="space-y-1.5 px-3">
-          {navItems.map((item) => (
+          {items.map((item) => (
             <li key={item.to}>
               <NavLink
                 to={item.to}
