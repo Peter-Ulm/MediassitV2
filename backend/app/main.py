@@ -72,6 +72,8 @@ def create_app() -> FastAPI:
     # Import routes after resolving CHROMA_PATH. The diagnosis route imports
     # Role 2, whose config reads CHROMA_PATH at import time.
     from app.api.routes import auth, consultations, diagnosis, health
+    from app.db.base import init_db
+    init_db()
 
     app = FastAPI(
         title="MediAssist API",
