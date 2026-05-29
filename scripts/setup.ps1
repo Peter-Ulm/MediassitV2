@@ -52,6 +52,12 @@ if (-not (Test-Path ".\frontend\.env.local")) {
 }
 
 Write-Host ""
+Write-Host "==> Demo login account" -ForegroundColor Cyan
+# Seed the demo doctor so the login page's "Continue as Demo Doctor" button
+# works immediately. Demo convenience only — see scripts/seed_demo.py.
+& .\.venv\Scripts\python.exe -m scripts.seed_demo
+
+Write-Host ""
 Write-Host "==> Ollama check" -ForegroundColor Cyan
 $ollama = Get-Command ollama -ErrorAction SilentlyContinue
 if ($null -eq $ollama) {
@@ -75,9 +81,11 @@ if ($null -eq $ollama) {
 Write-Host ""
 Write-Host "Setup complete." -ForegroundColor Green
 Write-Host ""
-Write-Host "NEXT STEPS (required — there is no signup page in the app):" -ForegroundColor Yellow
-Write-Host "  1. Create your login account:"
-Write-Host '       .\.venv\Scripts\python.exe -m scripts.create_user --email you@clinic.tz --name "Your Name" --role clinician'
-Write-Host "  2. Start the app (opens backend + frontend windows):"
+Write-Host "NEXT STEPS:" -ForegroundColor Yellow
+Write-Host "  1. Start the app (opens backend + frontend windows):"
 Write-Host "       .\scripts\run.ps1"
-Write-Host "  3. Open http://localhost:5173 and log in with the account from step 1."
+Write-Host "  2. Open http://localhost:5173 and click 'Continue as Demo Doctor'"
+Write-Host "     (or sign in with  dr.demo@mediassist.test  /  DemoPass123)."
+Write-Host ""
+Write-Host "  To add a real (non-demo) account there is no signup page; use the CLI:"
+Write-Host '       .\.venv\Scripts\python.exe -m scripts.create_user --email you@clinic.tz --name "Your Name" --role clinician'
