@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     RERANK_TOP_N: int = 3
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
 
+    # ── Persistence + Auth ──────────────────────────────────────────────────
+    DATABASE_URL: str = "sqlite:///data/mediassist.db"
+    # Dev default only. In real use set JWT_SECRET in .env to a long random value
+    # (python -c "import secrets; print(secrets.token_hex(32))").
+    JWT_SECRET: str = "dev-only-insecure-change-me"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 480
+
     # ── API surface ────────────────────────────────────────────────────────
     PORT: int = 8000
     HOST: str = "0.0.0.0"
