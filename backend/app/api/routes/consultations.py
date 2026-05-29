@@ -24,6 +24,7 @@ from app.api.routes.diagnosis import _build_recommended_tests
 from app.core.logger import logger
 from app.db.base import get_db
 from app.db.models import Consultation as ConsultationRow, User
+from app.services import audit
 from app.schemas.api import (
     Diagnosis,
     DiagnoseResponse,
@@ -144,6 +145,7 @@ def create_consultation(request: CreateConsultationRequest, db: Session = Depend
     db.add(row)
     db.commit()
     db.refresh(row)
+    audit.record(db, user_id=current_user.id, action="CONSULTATION_CREATE", target_type="consultation", target_id=row.id)
     logger.info(f"created consultation {row.id}")
     return _to_api(row)
 
@@ -171,6 +173,7 @@ def get_consultation(consultation_id: str, db: Session = Depends(get_db),
     row = db.get(ConsultationRow, consultation_id)
     if row is None or (current_user.role != "admin" and row.owner_user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Consultation not found")
+    audit.record(db, user_id=current_user.id, action="CONSULTATION_VIEW", target_type="consultation", target_id=row.id)
     return _to_api(row)
 
 
@@ -186,5 +189,6 @@ def update_consultation(consultation_id: str, request: UpdateConsultationRequest
         setattr(row, k, v)
     db.commit()
     db.refresh(row)
+    audit.record(db, user_id=current_user.id, action="CONSULTATION_UPDATE", target_type="consultation", target_id=row.id)
     logger.info(f"updated consultation {consultation_id}")
     return _to_api(row)
