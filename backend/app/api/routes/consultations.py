@@ -19,10 +19,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.api.routes.diagnosis import _build_recommended_tests
 from app.core.logger import logger
 from app.db.base import get_db
-from app.db.models import Consultation as ConsultationRow
+from app.db.models import Consultation as ConsultationRow, User
 from app.schemas.api import (
     Diagnosis,
     DiagnoseResponse,
@@ -33,8 +34,6 @@ from app.schemas.api import (
 from app.services.diagnose import diagnose
 
 router = APIRouter()
-
-_PLACEHOLDER_OWNER = "unassigned"  # replaced by the real user in Task 6
 
 
 class Consultation(BaseModel):
@@ -130,11 +129,12 @@ def _to_api(row: ConsultationRow) -> Consultation:
 
 
 @router.post("/consultations", response_model=Consultation)
-def create_consultation(request: CreateConsultationRequest, db: Session = Depends(get_db)) -> Consultation:
+def create_consultation(request: CreateConsultationRequest, db: Session = Depends(get_db),
+                        current_user: User = Depends(get_current_user)) -> Consultation:
     results = _to_diagnose_response(request.symptoms)
     row = ConsultationRow(
         id=f"consult-{uuid4().hex[:8]}",
-        owner_user_id=_PLACEHOLDER_OWNER,
+        owner_user_id=current_user.id,
         patient=request.patient.model_dump(),
         symptoms=request.symptoms,
         results=results.model_dump(),
@@ -149,8 +149,12 @@ def create_consultation(request: CreateConsultationRequest, db: Session = Depend
 
 
 @router.get("/consultations", response_model=List[ConsultationSummary])
-def list_consultations(db: Session = Depends(get_db)) -> List[ConsultationSummary]:
-    rows = db.query(ConsultationRow).order_by(ConsultationRow.created_at.desc()).all()
+def list_consultations(db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_user)) -> List[ConsultationSummary]:
+    q = db.query(ConsultationRow)
+    if current_user.role != "admin":
+        q = q.filter(ConsultationRow.owner_user_id == current_user.id)
+    rows = q.order_by(ConsultationRow.created_at.desc()).all()
     return [
         ConsultationSummary(
             id=r.id, patient=r.patient,
@@ -162,18 +166,20 @@ def list_consultations(db: Session = Depends(get_db)) -> List[ConsultationSummar
 
 
 @router.get("/consultations/{consultation_id}", response_model=Consultation)
-def get_consultation(consultation_id: str, db: Session = Depends(get_db)) -> Consultation:
+def get_consultation(consultation_id: str, db: Session = Depends(get_db),
+                     current_user: User = Depends(get_current_user)) -> Consultation:
     row = db.get(ConsultationRow, consultation_id)
-    if row is None:
+    if row is None or (current_user.role != "admin" and row.owner_user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Consultation not found")
     return _to_api(row)
 
 
 @router.patch("/consultations/{consultation_id}", response_model=Consultation)
 def update_consultation(consultation_id: str, request: UpdateConsultationRequest,
-                        db: Session = Depends(get_db)) -> Consultation:
+                        db: Session = Depends(get_db),
+                        current_user: User = Depends(get_current_user)) -> Consultation:
     row = db.get(ConsultationRow, consultation_id)
-    if row is None:
+    if row is None or (current_user.role != "admin" and row.owner_user_id != current_user.id):
         raise HTTPException(status_code=404, detail="Consultation not found")
     updates = request.model_dump(exclude_unset=True)
     for k, v in updates.items():
