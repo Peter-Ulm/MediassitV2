@@ -28,18 +28,24 @@ from app.services.users import create_user  # noqa: E402
 
 DEMO_EMAIL = "dr.demo@mediassist.test"
 DEMO_PASSWORD = "DemoPass123"
+DEMO_ADMIN_EMAIL = "admin.demo@mediassist.test"
+DEMO_ADMIN_PASSWORD = "DemoPass123"
+
+
+def _seed_one(db, email, name, password, role):
+    if db.query(User).filter(User.email == email).first():
+        print(f"Demo account already exists: {email}")
+        return
+    create_user(db, email=email, name=name, password=password, role=role)
+    print(f"Seeded demo account: {email} / {password}  ({role})")
 
 
 def main() -> None:
     init_db()
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.email == DEMO_EMAIL).first():
-            print(f"Demo account already exists: {DEMO_EMAIL}")
-            return
-        create_user(db, email=DEMO_EMAIL, name="Dr Demo",
-                    password=DEMO_PASSWORD, role="clinician")
-        print(f"Seeded demo account: {DEMO_EMAIL} / {DEMO_PASSWORD}")
+        _seed_one(db, DEMO_EMAIL, "Dr Demo", DEMO_PASSWORD, "clinician")
+        _seed_one(db, DEMO_ADMIN_EMAIL, "Admin Demo", DEMO_ADMIN_PASSWORD, "admin")
     finally:
         db.close()
 
