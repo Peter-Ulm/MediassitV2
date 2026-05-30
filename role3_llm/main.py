@@ -27,13 +27,15 @@ from role3_llm.parser import FALLBACK_RESPONSE
 from role3_llm.token_counter import count_tokens
 from role3_llm.validation.auditor import audit_grounding
 from role3_llm.validation.gatekeeper import gatekeeper_check
+from role3_llm.validation.sanitizer import sanitize_response
 from role3_llm.validation.strategist import strategist_check
 from shared.schemas import DiagnosisItem, DiagnosticResponse
 
 
 # Input-token ceiling. mistral:7b-instruct has 8k context; gpt-4o-mini has
 # 128k; llama3.2:3b has 128k. 7000 is the safe lower bound that works for
-# every supported model. We reserve 1000 tokens for the LLM's output.
+# every supported model. We reserve ~512 tokens for the LLM's output (see the
+# max_tokens cap on provider.generate below).
 MAX_INPUT_TOKENS = 7000
 
 
@@ -44,13 +46,19 @@ Your task: receive patient symptoms and excerpts from the Tanzania \
 Standard Treatment Guidelines (STG), then produce a structured \
 differential diagnosis.
 
-Rules:
+Rules (follow ALL of them — output that breaks any rule is rejected):
 - Reason ONLY from the provided STG excerpts. Do not use general medical \
 knowledge from your training data.
-- Every diagnosis MUST include a direct quote from the STG in its \
-`evidence` field.
-- Probabilities across all diagnoses must sum to approximately 100.
-- List 1 to 5 diagnoses, ranked by likelihood (rank 1 = most likely).
+- List the TOP 1 to 3 diagnoses, ranked by likelihood (rank 1 = most likely). \
+Include a diagnosis ONLY if you can support it with a quote from the excerpts. \
+Do NOT invent a candidate you cannot ground — omit it instead.
+- Every diagnosis MUST have a non-empty `reasoning` (one concise sentence, \
+about 20 words) AND a non-empty `evidence` field containing a SHORT exact \
+quote copied verbatim from the excerpts (at most ~15 words; copy exactly, do \
+NOT paraphrase, never leave it empty).
+- The `probability` values across all listed diagnoses MUST add up to exactly 100.
+- `follow_up_questions` MUST contain at least 2 questions and `recommended_tests` \
+at least 1 test. Neither list may be empty.
 
 Respond with ONLY valid JSON in this exact schema:
 
@@ -60,8 +68,8 @@ Respond with ONLY valid JSON in this exact schema:
       "rank": 1,
       "condition": "Disease name",
       "probability": 70,
-      "reasoning": "Why these symptoms suggest this condition.",
-      "evidence": "A direct quote from the STG.",
+      "reasoning": "One concise sentence on why these symptoms suggest this.",
+      "evidence": "A short exact quote copied verbatim from the excerpts.",
       "source_section": "Section name from the STG"
     }
   ],
@@ -118,12 +126,22 @@ def run_mediassist_pipeline(
         f"{provider.get_provider_name()}..."
     )
     try:
-        raw_text = provider.generate(messages)
+        # Cap output at 512 tokens: a concise top-3 differential fits well under
+        # this, and on CPU the generation time is ~linear in tokens produced, so
+        # the cap directly bounds worst-case latency.
+        raw_text = provider.generate(messages, max_tokens=512)
     except Exception as exc:
         print(
             f"[Pipeline] {provider.get_provider_name()}.generate() raised "
             f"{type(exc).__name__}: {exc} — returning fallback."
         )
+        return FALLBACK_RESPONSE
+
+    # 3b. Sanitizer — drop unusable (e.g. empty-evidence) diagnoses and
+    # renormalise probabilities BEFORE the strict gate, so one malformed item
+    # does not sink an otherwise-valid, grounded response.
+    raw_text = sanitize_response(raw_text)
+    if raw_text is None:
         return FALLBACK_RESPONSE
 
     # 4. Gatekeeper (parse + schema validate)

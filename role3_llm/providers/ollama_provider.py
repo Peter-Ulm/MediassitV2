@@ -19,10 +19,11 @@ Why this file is rewritten compared to the prototype:
     gives us all of the above and is simpler than the OpenAI-compat shim.
 
 Defaults:
-    OLLAMA_MODEL     = "mistral:7b-instruct"
-        Already pulled on the dev machine. Solid at JSON-structured clinical
-        reasoning. For faster demos, set OLLAMA_MODEL=llama3.2:3b after
-        `ollama pull llama3.2:3b` — 3B is roughly 3x faster than 7B.
+    OLLAMA_MODEL     = "llama3.2:3b"
+        ~2 GB, fits in CPU RAM comfortably and is roughly 3x faster than the
+        7B at JSON-structured clinical reasoning — the right default for the
+        CPU-only target machine. For maximum reasoning depth (slower), set
+        OLLAMA_MODEL=mistral:7b-instruct after `ollama pull mistral:7b-instruct`.
 
     OLLAMA_KEEP_ALIVE = "30m"
         Keeps the model warm for half an hour after the last call. Without
@@ -63,7 +64,7 @@ class OllamaProvider(LLMProvider):
             resolved_host = resolved_host[: -len("/v1")]
 
         self.host = resolved_host
-        self.model = os.getenv("OLLAMA_MODEL", "mistral:7b-instruct")
+        self.model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
         self.keep_alive = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
         self.num_ctx = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
 
