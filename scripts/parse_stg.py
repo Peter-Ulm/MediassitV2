@@ -55,11 +55,17 @@ _KNOWN_SECTIONS = {
 }
 
 
+def _normalize(text: str) -> str:
+    """Drop glyphs PyMuPDF could not map (bullets/arrows → U+FFFD) so they do not
+    litter clinician-facing evidence quotes. Real words are untouched."""
+    return text.replace("�", " ")
+
+
 def extract_pages(pdf_path: str) -> List[Tuple[int, str]]:
     """Return [(page_no (1-based), clean_text)] for every page via PyMuPDF."""
     doc = fitz.open(pdf_path)
     try:
-        return [(i + 1, page.get_text("text")) for i, page in enumerate(doc)]
+        return [(i + 1, _normalize(page.get_text("text"))) for i, page in enumerate(doc)]
     finally:
         doc.close()
 

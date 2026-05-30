@@ -41,28 +41,34 @@ def _scalar(value):
     return str(value)
 
 
-def build(
+def contextualize_and_embed(
+    records: list[dict],
     target_collection: str,
-    source_collection: str,
-    use_llm: bool,
-    source_path: str,
     target_path: str,
+    use_llm: bool,
 ) -> None:
-    # Source DB (legacy, read-only) and target DB (fresh) are SEPARATE clients.
-    src_client = chromadb.PersistentClient(path=source_path)
-    src = src_client.get_collection(source_collection)
-    raw = src.get(include=["documents", "metadatas"])
-    ids = raw["ids"]
-    docs = raw["documents"]
-    metas = raw["metadatas"]
-    log.info(f"Read {len(ids)} chunks from '{source_collection}' at {source_path}.")
+    """
+    Contextualize + embed a list of chunk records into a fresh target collection.
 
-    # Document order for neighbour windows: group by chapter, then page.
+    `records` is [{"id": str, "text": str, "metadata": {"chapter","section",
+    "page_start","page_end"}}]. This is the shared core used by BOTH the legacy
+    ChromaDB-source path (build() below) and the PDF re-chunk path
+    (scripts/build_stg_index.py).
+    """
+    log.info(f"Contextualizing {len(records)} records → '{target_collection}' at {target_path}.")
+
+    # Document order for neighbour windows: group by chapter, then page. Within a
+    # chapter this preserves reading order (all select_neighbors needs); across
+    # chapters the order is irrelevant because neighbours must share a chapter.
     order = sorted(
-        range(len(ids)),
-        key=lambda i: ((metas[i].get("chapter") or ""), metas[i].get("page_start") or 0, i),
+        range(len(records)),
+        key=lambda i: (
+            (records[i]["metadata"].get("chapter") or ""),
+            records[i]["metadata"].get("page_start") or 0,
+            i,
+        ),
     )
-    ordered = [{"id": ids[i], "text": docs[i], "metadata": metas[i]} for i in order]
+    ordered = [records[i] for i in order]
 
     cache = load_cache(CACHE_PATH)
     cache_hits = llm_calls = 0
@@ -126,6 +132,29 @@ def build(
         log.info(f"Embedded + wrote {min(start + EMBED_BATCH, len(out_ids))}/{len(out_ids)}")
 
     log.info(f"Built '{target_collection}' at {target_path} with {dst.count()} chunks.")
+
+
+def build(
+    target_collection: str,
+    source_collection: str,
+    use_llm: bool,
+    source_path: str,
+    target_path: str,
+) -> None:
+    """Legacy path: re-contextualize an existing ChromaDB source collection."""
+    # Source DB (legacy, read-only) and target DB (fresh) are SEPARATE clients.
+    src_client = chromadb.PersistentClient(path=source_path)
+    src = src_client.get_collection(source_collection)
+    raw = src.get(include=["documents", "metadatas"])
+    ids = raw["ids"]
+    docs = raw["documents"]
+    metas = raw["metadatas"]
+    log.info(f"Read {len(ids)} chunks from '{source_collection}' at {source_path}.")
+
+    records = [
+        {"id": ids[i], "text": docs[i], "metadata": metas[i]} for i in range(len(ids))
+    ]
+    contextualize_and_embed(records, target_collection, target_path, use_llm)
 
 
 def main() -> None:
