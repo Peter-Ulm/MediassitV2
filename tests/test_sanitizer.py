@@ -56,3 +56,25 @@ def test_sanitizer_returns_none_when_no_usable_diagnoses():
 
 def test_sanitizer_passes_unparseable_text_through_unchanged():
     assert sanitize_response("not json at all") == "not json at all"
+
+
+def test_missing_source_section_still_validates():
+    # llama3.2:3b sometimes omits `source_section`. It is provenance (which STG
+    # section), not safety-critical, so a grounded, well-evidenced differential
+    # must survive its absence rather than be discarded into the fallback.
+    raw = json.dumps({
+        "diagnoses": [
+            {"rank": 1, "condition": "Marburg Haemorrhagic Fever", "probability": 80,
+             "reasoning": "Fever with contact with a sick animal suggests Marburg.",
+             "evidence": "sudden onset of high fever and having had contact with a dead or sick animal"},
+            {"rank": 2, "condition": "Malaria", "probability": 20,
+             "reasoning": "Fever with chills could indicate malaria infection.",
+             "evidence": "Fever alone is not a diagnosis; be specific basing on clinical presentation."},
+        ],
+        "follow_up_questions": ["Travel history?", "Animal contact?"],
+        "recommended_tests": ["Malaria RDT"],
+        "confidence_overall": "medium",
+    })
+    resp = gatekeeper_check(sanitize_response(raw))
+    assert resp is not None
+    assert resp.diagnoses[0].source_section == ""  # defaulted, not rejected

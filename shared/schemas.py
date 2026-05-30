@@ -29,7 +29,8 @@ from pydantic import BaseModel, Field, field_validator
 
 # Bump when any field is added, removed, or renamed.
 # Benson's backend can log or assert on this at startup to detect contract drift.
-SCHEMA_VERSION = "1.1.0"
+# 1.1.1: source_section relaxed to default "" (provenance, not safety-critical).
+SCHEMA_VERSION = "1.1.1"
 
 
 class DiagnosisItem(BaseModel):
@@ -82,9 +83,13 @@ class DiagnosisItem(BaseModel):
     )
 
     # source_section: which STG section the evidence came from. Lets a doctor
-    # open the STG and verify the recommendation themselves.
+    # open the STG and verify the recommendation themselves. Defaults to "" —
+    # it is provenance, not safety-critical, so a smaller local model that omits
+    # it must NOT sink an otherwise-grounded, well-evidenced diagnosis into the
+    # fallback. The `evidence` field (above) remains the required grounding anchor.
     source_section: str = Field(
-        description="The STG section the evidence is drawn from.",
+        default="",
+        description="The STG section the evidence is drawn from (provenance; may be empty).",
     )
 
 
