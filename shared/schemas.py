@@ -30,7 +30,8 @@ from pydantic import BaseModel, Field, field_validator
 # Bump when any field is added, removed, or renamed.
 # Benson's backend can log or assert on this at startup to detect contract drift.
 # 1.1.1: source_section relaxed to default "" (provenance, not safety-critical).
-SCHEMA_VERSION = "1.1.1"
+# 1.1.2: confidence_overall defaults to "low" (small models sometimes omit it).
+SCHEMA_VERSION = "1.1.2"
 
 
 class DiagnosisItem(BaseModel):
@@ -124,7 +125,11 @@ class DiagnosticResponse(BaseModel):
 
     # confidence_overall: the LLM's self-reported confidence. A closed set of
     # three values — Literal rejects anything outside this set (e.g. 'medium-high').
+    # Defaults to "low" (conservative) so a smaller model that omits it doesn't
+    # sink a grounded response; the Sanitizer also coerces invalid values to
+    # "low", and pipeline_confidence (below) is the authoritative computed verdict.
     confidence_overall: Literal["low", "medium", "high"] = Field(
+        default="low",
         description="LLM's self-reported confidence in its own output.",
     )
 

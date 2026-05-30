@@ -103,4 +103,18 @@ def sanitize_response(raw_text: str) -> Optional[str]:
     # Always renormalise the survivors to sum to exactly 100 so the Gatekeeper's
     # 98–102 sum check passes (also fixes a model that was simply off, e.g. 95).
     data["diagnoses"] = calibrate_probabilities(kept)
+
+    # Backfill/repair required top-level fields that smaller local models
+    # sometimes OMIT or MALFORM (e.g. llama3.2:3b dropping `confidence_overall`,
+    # or emitting "moderate"). Without this, the strict Gatekeeper discards an
+    # otherwise-grounded differential into the fallback. These are safe, generic
+    # defaults — never fabricated clinical specifics; the per-diagnosis evidence
+    # remains the grounding anchor and pipeline_confidence is computed separately.
+    if not isinstance(data.get("follow_up_questions"), list) or not data["follow_up_questions"]:
+        data["follow_up_questions"] = ["Any other relevant symptoms, history, or exposures?"]
+    if not isinstance(data.get("recommended_tests"), list) or not data["recommended_tests"]:
+        data["recommended_tests"] = ["Clinical assessment as per STG guidance"]
+    if data.get("confidence_overall") not in ("low", "medium", "high"):
+        data["confidence_overall"] = "low"
+
     return json.dumps(data)

@@ -78,3 +78,54 @@ def test_missing_source_section_still_validates():
     resp = gatekeeper_check(sanitize_response(raw))
     assert resp is not None
     assert resp.diagnoses[0].source_section == ""  # defaulted, not rejected
+
+
+def _grounded_two():
+    """Two valid, grounded diagnoses (probabilities renormalised by the sanitizer)."""
+    return [
+        {"rank": 1, "condition": "Cholera", "probability": 60,
+         "reasoning": "Sudden painless watery diarrhoea suggests cholera.",
+         "evidence": "A sudden onset of painless watery diarrhoea that may quickly become severe.",
+         "source_section": "GI infections"},
+        {"rank": 2, "condition": "E. coli infection", "probability": 40,
+         "reasoning": "Watery diarrhoea without blood suggests enterotoxigenic E. coli.",
+         "evidence": "E. coli (enterotoxigenic) is the most common cause of traveler's diarrhea.",
+         "source_section": "GI infections"},
+    ]
+
+
+def test_missing_confidence_overall_still_validates():
+    # The exact failure reported live: 3b omits confidence_overall entirely.
+    raw = json.dumps({
+        "diagnoses": _grounded_two(),
+        "follow_up_questions": ["Travel history?", "Contaminated food/water?"],
+        "recommended_tests": ["Stool examination"],
+        # confidence_overall omitted
+    })
+    resp = gatekeeper_check(sanitize_response(raw))
+    assert resp is not None
+    assert resp.confidence_overall == "low"  # safe conservative default
+
+
+def test_invalid_confidence_overall_is_coerced():
+    raw = json.dumps({
+        "diagnoses": _grounded_two(),
+        "follow_up_questions": ["Travel history?"],
+        "recommended_tests": ["Stool examination"],
+        "confidence_overall": "moderate",  # not in the Literal set
+    })
+    resp = gatekeeper_check(sanitize_response(raw))
+    assert resp is not None
+    assert resp.confidence_overall == "low"
+
+
+def test_missing_followups_and_tests_are_backfilled():
+    raw = json.dumps({
+        "diagnoses": _grounded_two(),
+        # follow_up_questions and recommended_tests omitted
+        "confidence_overall": "medium",
+    })
+    resp = gatekeeper_check(sanitize_response(raw))
+    assert resp is not None
+    assert len(resp.follow_up_questions) >= 1
+    assert len(resp.recommended_tests) >= 1
